@@ -1,12 +1,18 @@
 #ifndef GLVIEWER_H
 #define GLVIEWER_H
 
-#include <QtOpenGL/QtOpenGL>
-#include <QWidget>
+#include <qwidget.h>
+#include <qobject.h>
 #include <Eigen/Dense>
+#include <qopengl.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <QGLWidget>
+#include <qqueue.h>
+#include <qthread.h>
+#include <qreadwritelock.h>
+#include <QKeyEvent>
+#include <QColorDialog>
 
 struct CAMERAPARAMETERS
 {
@@ -20,6 +26,9 @@ struct CAMERAPARAMETERS
 	GLfloat eye[4];
     double tspeed,rspeed;
     int pointsize;
+    GLdouble modelview[16];
+    GLdouble projection[16];
+    GLint viewport[4];
 };
 
 struct DISPLAYLIST
@@ -42,19 +51,20 @@ protected:
     void resizeGL(int width, int height);
     void keyPressEvent(QKeyEvent * event);
     void mousePressEvent(QMouseEvent * event);
+    void mouseReleaseEvent(QMouseEvent * event);
     void wheelEvent(QWheelEvent * event);
     void mouseMoveEvent(QMouseEvent * event);
 signals:
-    void mousePosition(int mx, int my, Eigen::Vector3d eye, double minview, double maxview, QMouseEvent *event);
+    void mousePositionSignal(QMouseEvent event, CAMERAPARAMETERS parameters);
 private:
-    CAMERAPARAMETERS parameters;
+    CAMERAPARAMETERS cameraparameters;
     std::vector<DISPLAYLIST> displaylist;
     bool bperspective;
 private:
     void setProjection();
 public:
     void addDisplayList(GLuint listid);
-    void addDisplayLists(std::vector<GLuint> & listids);
+    void addDisplayLists(GLuint listid, GLuint num);
     void enableShow(GLuint listid, bool show, bool islistid=0);
     void deleteDisplayList(GLuint listid, bool islistid=0);
     void clearDisplayList();
@@ -66,6 +76,41 @@ public:
 	void setDisplayListRotation(GLuint listid, double rx, double ry, double rz, bool islistid=1);
 	void setDisplayListTranslation(GLuint listid, double tx, double ty, double tz, bool islistid=1);
 	void setDisplayListTransform(GLuint listid, Eigen::Matrix4d transform, bool islistid=1);
+};
+
+class MouseCameraEventQueue : public QObject
+{
+    Q_OBJECT
+public:
+    MouseCameraEventQueue(int queueSizeLimit=0, QObject * parent=0);
+    ~MouseCameraEventQueue();
+protected:
+    int queuesizelimit;
+    bool receivemouseposition;
+    QReadWriteLock lock;
+    QQueue<QMouseEvent> mouseevents;
+    QQueue<CAMERAPARAMETERS> cameraparameters;
+signals:
+    void interactiveSignal();
+protected slots:
+    void mousePositionSlot(QMouseEvent event, CAMERAPARAMETERS parameters);
+public slots:
+    void startReceiveMouseCameraEventSlot();
+    void stopReceiveMouseCameraEventSlot();
+public:
+    void getInteraction(QMouseEvent & event, CAMERAPARAMETERS & parameters);
+};
+
+class InteractiveGLViewer : public GLViewer
+{
+    Q_OBJECT
+public:
+    InteractiveGLViewer(int queueSizeLimit, QWidget * parent=0);
+    ~InteractiveGLViewer();
+protected:
+    QThread thread;
+public:
+    MouseCameraEventQueue * mousecameraeventqueue;
 };
 
 #endif

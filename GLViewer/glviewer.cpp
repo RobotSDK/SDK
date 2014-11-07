@@ -5,21 +5,21 @@
 GLViewer::GLViewer(QWidget *parent) :
     QGLWidget(parent)
 {
-    parameters.viewAngle=60;
-    parameters.viewheight=50;
-    parameters.minView=0.001;
-    parameters.maxView=1000;
-    parameters.width=0;
-    parameters.height=0;
-    parameters.background=Eigen::Vector4d(0,0,0,1);
-	parameters.lightambient[0]=1.0;
-	parameters.lightambient[1]=1.0;
-	parameters.lightambient[2]=1.0;
-	parameters.lightambient[3]=1.0;
-    parameters.transform.setIdentity();
-    parameters.tspeed=10;
-    parameters.rspeed=1;
-    parameters.pointsize=1;
+    cameraparameters.viewAngle=60;
+    cameraparameters.viewheight=50;
+    cameraparameters.minView=0.001;
+    cameraparameters.maxView=1000;
+    cameraparameters.width=0;
+    cameraparameters.height=0;
+    cameraparameters.background=Eigen::Vector4d(0,0,0,1);
+    cameraparameters.lightambient[0]=1.0;
+    cameraparameters.lightambient[1]=1.0;
+    cameraparameters.lightambient[2]=1.0;
+    cameraparameters.lightambient[3]=1.0;
+    cameraparameters.transform.setIdentity();
+    cameraparameters.tspeed=10;
+    cameraparameters.rspeed=1;
+    cameraparameters.pointsize=1;
     bperspective=1;
     setMouseTracking(1);
 }
@@ -39,7 +39,7 @@ GLViewer::~GLViewer()
 void GLViewer::initializeGL()
 {
     glShadeModel(GL_FLAT);
-    glClearColor(parameters.background(0),parameters.background(1),parameters.background(2),parameters.background(3));
+    glClearColor(cameraparameters.background(0),cameraparameters.background(1),cameraparameters.background(2),cameraparameters.background(3));
     glClearDepth(1.0);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
@@ -50,31 +50,31 @@ void GLViewer::initializeGL()
 
 void GLViewer::paintGL()
 {
-	Eigen::Vector4d eye=parameters.transform*Eigen::Vector4d(0,0,0,1);
-	Eigen::Vector4d center=parameters.transform*Eigen::Vector4d(0,0,-1,1);
-	Eigen::Vector4d up=parameters.transform*Eigen::Vector4d(0,1,0,0);
+    Eigen::Vector4d eye=cameraparameters.transform*Eigen::Vector4d(0,0,0,1);
+    Eigen::Vector4d center=cameraparameters.transform*Eigen::Vector4d(0,0,-1,1);
+    Eigen::Vector4d up=cameraparameters.transform*Eigen::Vector4d(0,1,0,0);
     makeCurrent();
-	parameters.eye[0]=eye(0);
-	parameters.eye[1]=eye(1);
-	parameters.eye[2]=eye(2);
-	parameters.eye[3]=eye(3);
-	glLightfv(GL_LIGHT0, GL_POSITION,parameters.eye);
-	glLightfv(GL_LIGHT0, GL_AMBIENT, parameters.lightambient);	
-	glLightfv(GL_LIGHT0, GL_DIFFUSE,parameters.lightambient);
-	glLightfv(GL_LIGHT0, GL_SPECULAR,parameters.lightambient);
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, parameters.lightambient);
+    cameraparameters.eye[0]=eye(0);
+    cameraparameters.eye[1]=eye(1);
+    cameraparameters.eye[2]=eye(2);
+    cameraparameters.eye[3]=eye(3);
+    glLightfv(GL_LIGHT0, GL_POSITION,cameraparameters.eye);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, cameraparameters.lightambient);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE,cameraparameters.lightambient);
+    glLightfv(GL_LIGHT0, GL_SPECULAR,cameraparameters.lightambient);
+    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, cameraparameters.lightambient);
 	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,GL_TRUE);
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE,GL_TRUE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glClearColor(parameters.background(0),parameters.background(1),parameters.background(2),0.0);
+    glClearColor(cameraparameters.background(0),cameraparameters.background(1),cameraparameters.background(2),0.0);
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
     glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();   
     gluLookAt(eye(0),eye(1),eye(2),center(0),center(1),center(2),up(0),up(1),up(2));
 	glPushMatrix();
     int i,n=displaylist.size();
-    glPointSize(parameters.pointsize);
+    glPointSize(cameraparameters.pointsize);
     for(i=0;i<n;i++)
     {
         if(displaylist[i].show)
@@ -104,16 +104,19 @@ void GLViewer::setProjection()
     glLoadIdentity();
     if(bperspective)
     {
-        gluPerspective((GLdouble)parameters.viewAngle,(GLfloat)parameters.width/(GLfloat)parameters.height,(GLdouble) parameters.minView,(GLdouble) parameters.maxView);
+        gluPerspective((GLdouble)cameraparameters.viewAngle,(GLfloat)cameraparameters.width/(GLfloat)cameraparameters.height,(GLdouble) cameraparameters.minView,(GLdouble) cameraparameters.maxView);
     }
     else
     {
-        double viewheight=parameters.viewheight;
-        double viewwidth=viewheight*(double)parameters.width/(double)parameters.height;
-        glOrtho((GLdouble)-viewwidth/2.0,(GLdouble)viewwidth/2.0,(GLdouble)-viewheight/2.0,(GLdouble)viewheight/2.0,parameters.minView,parameters.maxView);
+        double viewheight=cameraparameters.viewheight;
+        double viewwidth=viewheight*(double)cameraparameters.width/(double)cameraparameters.height;
+        glOrtho((GLdouble)-viewwidth/2.0,(GLdouble)viewwidth/2.0,(GLdouble)-viewheight/2.0,(GLdouble)viewheight/2.0,cameraparameters.minView,cameraparameters.maxView);
     }
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+    glGetDoublev (GL_MODELVIEW_MATRIX,cameraparameters.modelview);
+    glGetDoublev (GL_PROJECTION_MATRIX,cameraparameters.projection);
+    glGetIntegerv(GL_VIEWPORT,cameraparameters.viewport);
     return;
 }
 
@@ -124,9 +127,9 @@ void GLViewer::resizeGL(int width, int height)
     {
         height=1;
     }
-    parameters.width=width;
-    parameters.height=height;
-    glViewport(0,0,(GLint)parameters.width,(GLint)parameters.height);
+    cameraparameters.width=width;
+    cameraparameters.height=height;
+    glViewport(0,0,(GLint)cameraparameters.width,(GLint)cameraparameters.height);
     setProjection();
     return;
 }
@@ -137,67 +140,67 @@ void GLViewer::keyPressEvent(QKeyEvent * event)
     {
     case Qt::Key_Up:
         {
-            parameters.transform.col(3)=parameters.transform*Eigen::Vector4d(0,0,-parameters.tspeed,1);
+            cameraparameters.transform.col(3)=cameraparameters.transform*Eigen::Vector4d(0,0,-cameraparameters.tspeed,1);
         }
         break;
     case Qt::Key_Down:
         {
-            parameters.transform.col(3)=parameters.transform*Eigen::Vector4d(0,0,parameters.tspeed,1);
+            cameraparameters.transform.col(3)=cameraparameters.transform*Eigen::Vector4d(0,0,cameraparameters.tspeed,1);
         }
         break;
     case Qt::Key_Left:
         {
-            parameters.transform.col(3)=parameters.transform*Eigen::Vector4d(-parameters.tspeed,0,0,1);
+            cameraparameters.transform.col(3)=cameraparameters.transform*Eigen::Vector4d(-cameraparameters.tspeed,0,0,1);
         }
         break;
     case Qt::Key_Right:
         {
-            parameters.transform.col(3)=parameters.transform*Eigen::Vector4d(parameters.tspeed,0,0,1);
+            cameraparameters.transform.col(3)=cameraparameters.transform*Eigen::Vector4d(cameraparameters.tspeed,0,0,1);
         }
         break;
     case Qt::Key_PageUp:
         {
-            parameters.transform.col(3)=parameters.transform*Eigen::Vector4d(0,parameters.tspeed,0,1);
+            cameraparameters.transform.col(3)=cameraparameters.transform*Eigen::Vector4d(0,cameraparameters.tspeed,0,1);
         }
         break;
     case Qt::Key_PageDown:
         {
-            parameters.transform.col(3)=parameters.transform*Eigen::Vector4d(0,-parameters.tspeed,0,1);
+            cameraparameters.transform.col(3)=cameraparameters.transform*Eigen::Vector4d(0,-cameraparameters.tspeed,0,1);
         }
         break;
     case Qt::Key_W://w
         {
-            parameters.transform.block<3,3>(0,0)=parameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(parameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitX());
+            cameraparameters.transform.block<3,3>(0,0)=cameraparameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(cameraparameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitX());
         }
         break;
     case Qt::Key_S://s
         {
-            parameters.transform.block<3,3>(0,0)=parameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(-parameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitX());
+            cameraparameters.transform.block<3,3>(0,0)=cameraparameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(-cameraparameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitX());
         }
         break;
     case Qt::Key_A://a
         {
-            parameters.transform.block<3,3>(0,0)=parameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(parameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitY());
+            cameraparameters.transform.block<3,3>(0,0)=cameraparameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(cameraparameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitY());
         }
         break;
     case Qt::Key_D://d
         {
-            parameters.transform.block<3,3>(0,0)=parameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(-parameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitY());
+            cameraparameters.transform.block<3,3>(0,0)=cameraparameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(-cameraparameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitY());
         }
         break;
     case Qt::Key_Q://q
         {
-            parameters.transform.block<3,3>(0,0)=parameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(parameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitZ());
+            cameraparameters.transform.block<3,3>(0,0)=cameraparameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(cameraparameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitZ());
         }
         break;
     case Qt::Key_E://e
         {
-            parameters.transform.block<3,3>(0,0)=parameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(-parameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitZ());
+            cameraparameters.transform.block<3,3>(0,0)=cameraparameters.transform.block<3,3>(0,0)*Eigen::AngleAxisd(-cameraparameters.rspeed*GL_PI/180.0,Eigen::Vector3d::UnitZ());
         }
         break;
     case Qt::Key_Home:
         {
-            parameters.transform.setIdentity();
+            cameraparameters.transform.setIdentity();
         }
         break;
     case Qt::Key_1:
@@ -216,11 +219,11 @@ void GLViewer::keyPressEvent(QKeyEvent * event)
         {
             if(bperspective)
             {
-                parameters.viewAngle+=1;
+                cameraparameters.viewAngle+=1;
             }
             else
             {
-                parameters.viewheight+=1;
+                cameraparameters.viewheight+=1;
             }
             setProjection();
         }
@@ -229,11 +232,11 @@ void GLViewer::keyPressEvent(QKeyEvent * event)
         {
             if(bperspective)
             {
-                parameters.viewAngle-=1;
+                cameraparameters.viewAngle-=1;
             }
             else
             {
-                parameters.viewheight-=1;
+                cameraparameters.viewheight-=1;
             }
             setProjection();
         }
@@ -242,11 +245,11 @@ void GLViewer::keyPressEvent(QKeyEvent * event)
         {
             if(bperspective)
             {
-                parameters.viewAngle+=10;
+                cameraparameters.viewAngle+=10;
             }
             else
             {
-                parameters.viewheight+=10;
+                cameraparameters.viewheight+=10;
             }
             setProjection();
         }
@@ -255,53 +258,53 @@ void GLViewer::keyPressEvent(QKeyEvent * event)
         {
             if(bperspective)
             {
-                parameters.viewAngle-=10;
+                cameraparameters.viewAngle-=10;
             }
             else
             {
-                parameters.viewheight-=10;
+                cameraparameters.viewheight-=10;
             }
             setProjection();
         }
         break;
     case Qt::Key_B:
         {
-            QColor color(parameters.background(0)*255,parameters.background(1)*255,parameters.background(2)*255,parameters.background(3)*255);
+            QColor color(cameraparameters.background(0)*255,cameraparameters.background(1)*255,cameraparameters.background(2)*255,cameraparameters.background(3)*255);
             color=QColorDialog::getColor(color,this);
             if(color.isValid())
             {
-                parameters.background(0)=color.red()/255.0;
-                parameters.background(1)=color.green()/255.0;
-                parameters.background(2)=color.blue()/255.0;
-                parameters.background(3)=color.alpha()/255.0;
+                cameraparameters.background(0)=color.red()/255.0;
+                cameraparameters.background(1)=color.green()/255.0;
+                cameraparameters.background(2)=color.blue()/255.0;
+                cameraparameters.background(3)=color.alpha()/255.0;
             }
          }
         break;
 	case Qt::Key_N:
 		{
-			QColor color(parameters.lightambient[0]*255,parameters.lightambient[1]*255,parameters.lightambient[2]*255,parameters.lightambient[3]*255);
+            QColor color(cameraparameters.lightambient[0]*255,cameraparameters.lightambient[1]*255,cameraparameters.lightambient[2]*255,cameraparameters.lightambient[3]*255);
 			color=QColorDialog::getColor(color,this);
 			if(color.isValid())
 			{
-				parameters.lightambient[0]=color.red()/255.0;
-				parameters.lightambient[1]=color.green()/255.0;
-				parameters.lightambient[2]=color.blue()/255.0;
-				parameters.lightambient[3]=color.alpha()/255.0;
+                cameraparameters.lightambient[0]=color.red()/255.0;
+                cameraparameters.lightambient[1]=color.green()/255.0;
+                cameraparameters.lightambient[2]=color.blue()/255.0;
+                cameraparameters.lightambient[3]=color.alpha()/255.0;
 			}
 		}
 		break;
     case Qt::Key_O:
         {
-               parameters.pointsize--;
-               if(parameters.pointsize<1)
+               cameraparameters.pointsize--;
+               if(cameraparameters.pointsize<1)
                {
-                   parameters.pointsize=1;
+                   cameraparameters.pointsize=1;
                }
         }
         break;
     case Qt::Key_P:
         {
-            parameters.pointsize++;
+            cameraparameters.pointsize++;
         }
         break;
 	case Qt::Key_Delete:
@@ -324,8 +327,13 @@ void GLViewer::keyPressEvent(QKeyEvent * event)
 void GLViewer::mousePressEvent(QMouseEvent *event)
 {
     setFocus();
-    Eigen::Vector3d eye=parameters.transform.block<3,1>(0,3);
-    emit mousePosition(event->x(),event->y(),eye,parameters.minView,parameters.maxView,event);
+    emit mousePositionSignal(*event,cameraparameters);
+    return;
+}
+
+void GLViewer::mouseReleaseEvent(QMouseEvent *event)
+{
+    emit mousePositionSignal(*event,cameraparameters);
     return;
 }
 
@@ -333,21 +341,20 @@ void GLViewer::wheelEvent(QWheelEvent * event)
 {
     int numdegrees=event->delta()/8;
     int numsteps=numdegrees/15;
-    parameters.tspeed*=pow(2.0,(double)numsteps);
-    if(parameters.tspeed>10)
+    cameraparameters.tspeed*=pow(2.0,(double)numsteps);
+    if(cameraparameters.tspeed>10)
     {
-        parameters.tspeed=10;
+        cameraparameters.tspeed=10;
     }
-    else if(parameters.tspeed<0.01)
+    else if(cameraparameters.tspeed<0.01)
     {
-        parameters.tspeed=0.01;
+        cameraparameters.tspeed=0.01;
     }
 }
 
 void GLViewer::mouseMoveEvent(QMouseEvent *event)
 {
-    Eigen::Vector3d eye=parameters.transform.block<3,1>(0,3);
-    emit mousePosition(event->x(),event->y(),eye,parameters.minView,parameters.maxView,event);
+    emit mousePositionSignal(*event,cameraparameters);
     return;
 }
 
@@ -369,15 +376,14 @@ void GLViewer::addDisplayList(GLuint listid)
     return;
 }
 
-void GLViewer::addDisplayLists(std::vector<GLuint> &listids)
+void GLViewer::addDisplayLists(GLuint listid, GLuint num)
 {
     makeCurrent();
-    int i,n=listids.size();
+    int i,n=num;
     for(i=0;i<n;i++)
     {
-        listids[i]=glGenLists(1);
         DISPLAYLIST list;
-        list.listid=listids[i];
+        list.listid=listid+i;
         list.show=1;
         displaylist.push_back(list);
     }
@@ -442,21 +448,21 @@ int GLViewer::listSize()
 void GLViewer::setCameraPose(Eigen::Matrix4d transform)
 {
     transform.block<3,3>(0,0).normalize();
-    parameters.transform=transform;
+    cameraparameters.transform=transform;
     return;
 }
 
 Eigen::Matrix4d GLViewer::getCameraPose()
 {
-    return parameters.transform;
+    return cameraparameters.transform;
 }
 
 void GLViewer::setBackground(QColor color)
 {
-    parameters.background(0)=color.red()/255.0;
-    parameters.background(1)=color.green()/255.0;
-    parameters.background(2)=color.blue()/255.0;
-    parameters.background(3)=color.alpha()/255.0;
+    cameraparameters.background(0)=color.red()/255.0;
+    cameraparameters.background(1)=color.green()/255.0;
+    cameraparameters.background(2)=color.blue()/255.0;
+    cameraparameters.background(3)=color.alpha()/255.0;
     return;
 }
 
@@ -558,4 +564,84 @@ void GLViewer::setDisplayListTransform(GLuint listid, Eigen::Matrix4d transform,
         displaylist[listid].transform=transform;
     }
     return;
+}
+
+MouseCameraEventQueue::MouseCameraEventQueue(int queueSizeLimit, QObject *parent)
+    : QObject(parent)
+{
+    receivemouseposition=0;
+    queuesizelimit=queueSizeLimit;
+}
+
+MouseCameraEventQueue::~MouseCameraEventQueue()
+{
+    receivemouseposition=0;
+    mouseevents.clear();
+    cameraparameters.clear();
+}
+
+void MouseCameraEventQueue::mousePositionSlot(QMouseEvent event, CAMERAPARAMETERS parameters)
+{
+    lock.lockForWrite();
+    if(receivemouseposition)
+    {        
+        mouseevents.push_back(event);
+        cameraparameters.push_back(parameters);
+        if(queuesizelimit>0&&mouseevents.size()>queuesizelimit)
+        {
+            mouseevents.pop_front();
+            cameraparameters.pop_front();
+        }
+        emit interactiveSignal();
+    }
+    lock.unlock();
+}
+
+void MouseCameraEventQueue::startReceiveMouseCameraEventSlot()
+{
+    lock.lockForWrite();
+    receivemouseposition=1;
+    mouseevents.clear();
+    cameraparameters.clear();
+    lock.unlock();
+}
+
+void MouseCameraEventQueue::stopReceiveMouseCameraEventSlot()
+{
+    lock.lockForWrite();
+    receivemouseposition=0;
+    lock.unlock();
+}
+
+void MouseCameraEventQueue::getInteraction(QMouseEvent &event, CAMERAPARAMETERS &parameters)
+{
+    lock.lockForWrite();
+    if(mouseevents.size()>0)
+    {
+        event=mouseevents.front();
+        parameters=cameraparameters.front();
+        mouseevents.pop_front();
+        cameraparameters.pop_front();
+    }
+    lock.unlock();
+}
+
+InteractiveGLViewer::InteractiveGLViewer(int queueSizeLimit, QWidget *parent)
+    : GLViewer(parent)
+{
+    mousecameraeventqueue=new MouseCameraEventQueue(queueSizeLimit,NULL);
+    mousecameraeventqueue->moveToThread(&thread);
+    connect(this,SIGNAL(mousePositionSignal(QMouseEvent,CAMERAPARAMETERS)),mousecameraeventqueue,SLOT(mousePositionSlot(QMouseEvent,CAMERAPARAMETERS)));
+    thread.start();
+}
+
+InteractiveGLViewer::~InteractiveGLViewer()
+{
+    thread.exit();
+    thread.wait();
+    if(mousecameraeventqueue!=NULL)
+    {
+        delete mousecameraeventqueue;
+        mousecameraeventqueue=NULL;
+    }
 }
