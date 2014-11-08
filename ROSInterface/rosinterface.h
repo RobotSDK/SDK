@@ -40,6 +40,8 @@ protected:
     ros::Publisher pub;
 public:
     bool sendMessage(MSGTYPE & msg);
+    QString getTopic();
+    void resetTopic(QString Topic, u_int32_t QueueSize);
 };
 
 template<class MSGTYPE>
@@ -67,6 +69,19 @@ bool ROSPub<MSGTYPE>::sendMessage(MSGTYPE & msg)
     {
         return 0;
     }
+}
+
+template<class MSGTYPE>
+QString ROSPub<MSGTYPE>::getTopic()
+{
+    return QString::fromStdString(pub.getTopic());
+}
+
+template<class MSGTYPE>
+void ROSPub<MSGTYPE>::resetTopic(QString Topic, u_int32_t QueueSize)
+{
+    pub.shutdown();
+    pub=nh->advertise<MSGTYPE>(Topic.toStdString(),QueueSize);
 }
 
 class ROSSubBase : public ROSInterfaceBase
@@ -109,6 +124,7 @@ protected:
     void clearMessage();
 public:
     MSGTYPE getMessage();
+    QString getTopic();
     void resetTopic(QString Topic, u_int32_t QueueSize);
 };
 
@@ -154,6 +170,12 @@ MSGTYPE ROSSub<MSGTYPE>::getMessage()
     }
     lock.unlock();
     return msg;
+}
+
+template<class MSGTYPE>
+QString ROSSub<MSGTYPE>::getTopic()
+{
+    return QString::fromStdString(sub.getTopic());
 }
 
 template<class MSGTYPE>
