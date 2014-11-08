@@ -109,6 +109,7 @@ protected:
     void clearMessage();
 public:
     MSGTYPE getMessage();
+    void resetTopic(QString Topic, u_int32_t QueueSize);
 };
 
 template<class MSGTYPE>
@@ -153,6 +154,15 @@ MSGTYPE ROSSub<MSGTYPE>::getMessage()
     }
     lock.unlock();
     return msg;
+}
+
+template<class MSGTYPE>
+void ROSSub<MSGTYPE>::resetTopic(QString Topic, u_int32_t QueueSize)
+{
+    lock.lockForWrite();
+    sub.shutdown();
+    sub=nh->subscribe(Topic.toStdString(),QueueSize,&ROSSub<MSGTYPE>::receiveMessageCallback,this);
+    lock.unlock();
 }
 
 #endif // ROSINTERFACE_H
