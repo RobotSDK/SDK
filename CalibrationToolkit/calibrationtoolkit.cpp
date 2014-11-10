@@ -102,7 +102,7 @@ cv::Mat CalibrationToolkitBase::getExtrinsicMat()
     return extrinsicmat;
 }
 
-CalibrateCameraChessboard::CalibrateCameraChessboard(QString topic, cv::Size2f patternSize, cv::Size2i patternNum, QWidget *parent)
+CalibrateROSCameraChessboard::CalibrateROSCameraChessboard(QString topic, cv::Size2f patternSize, cv::Size2i patternNum, QWidget *parent)
     : CalibrationToolkitBase(parent)
 {
     patternsize=patternSize;
@@ -173,12 +173,12 @@ CalibrateCameraChessboard::CalibrateCameraChessboard(QString topic, cv::Size2f p
     camerasub->startReceiveSlot();
 }
 
-CalibrateCameraChessboard::~CalibrateCameraChessboard()
+CalibrateROSCameraChessboard::~CalibrateROSCameraChessboard()
 {
 
 }
 
-void CalibrateCameraChessboard::refreshImageSlot()
+void CalibrateROSCameraChessboard::refreshImageSlot()
 {
     sensor_msgs::ImageConstPtr msg=camerasub->getMessage();
     if(msg==NULL)
@@ -210,7 +210,7 @@ void CalibrateCameraChessboard::refreshImageSlot()
     return;
 }
 
-bool CalibrateCameraChessboard::grabCalibData()
+bool CalibrateROSCameraChessboard::grabCalibData()
 {
     camerasub->stopReceiveSlot();
     cv::vector<cv::Point2f> grid2dpoint;
@@ -248,7 +248,7 @@ bool CalibrateCameraChessboard::grabCalibData()
     return 1;
 }
 
-bool CalibrateCameraChessboard::calibrateSensor()
+bool CalibrateROSCameraChessboard::calibrateSensor()
 {
     cv::vector<cv::Mat> rvecs;
     cv::vector<cv::Mat> tvecs;
@@ -286,7 +286,7 @@ bool CalibrateCameraChessboard::calibrateSensor()
     return 1;
 }
 
-bool CalibrateCameraChessboard::loadCalibResult(cv::FileStorage &fs)
+bool CalibrateROSCameraChessboard::loadCalibResult(cv::FileStorage &fs)
 {
     CalibrationToolkitBase::loadCalibResult(fs);
     fs[CAMERAMAT]>>cameramat;
@@ -309,7 +309,7 @@ bool CalibrateCameraChessboard::loadCalibResult(cv::FileStorage &fs)
     return 1;
 }
 
-bool CalibrateCameraChessboard::saveCalibResult(cv::FileStorage &fs)
+bool CalibrateROSCameraChessboard::saveCalibResult(cv::FileStorage &fs)
 {
     CalibrationToolkitBase::saveCalibResult(fs);
     fs<<CAMERAMAT<<cameramat;
@@ -326,22 +326,22 @@ bool CalibrateCameraChessboard::saveCalibResult(cv::FileStorage &fs)
     return 1;
 }
 
-cv::Mat CalibrateCameraChessboard::getCameraMat()
+cv::Mat CalibrateROSCameraChessboard::getCameraMat()
 {
     return cameramat;
 }
 
-cv::Mat CalibrateCameraChessboard::getDistCoeff()
+cv::Mat CalibrateROSCameraChessboard::getDistCoeff()
 {
     return distcoeff;
 }
 
-cv::Mat CalibrateCameraChessboard::getChessboardPose(int id)
+cv::Mat CalibrateROSCameraChessboard::getChessboardPose(int id)
 {
     return chessboardposes[id];
 }
 
-cv::vector<cv::Mat> CalibrateCameraChessboard::getChessboardPoses()
+cv::vector<cv::Mat> CalibrateROSCameraChessboard::getChessboardPoses()
 {
     return chessboardposes;
 }

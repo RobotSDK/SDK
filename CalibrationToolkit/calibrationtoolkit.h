@@ -55,12 +55,12 @@ public:
     cv::Mat getExtrinsicMat();
 };
 
-class CalibrateCameraChessboard : public CalibrationToolkitBase
+class CalibrateROSCameraChessboard : public CalibrationToolkitBase
 {
     Q_OBJECT
 public:
-    CalibrateCameraChessboard(QString topic, cv::Size2f patternSize, cv::Size2i patternNum, QWidget * parent=0);
-    ~CalibrateCameraChessboard();
+    CalibrateROSCameraChessboard(QString topic, cv::Size2f patternSize, cv::Size2i patternNum, QWidget * parent=0);
+    ~CalibrateROSCameraChessboard();
 protected:
     ROSSub<sensor_msgs::ImageConstPtr> * camerasub;
 
