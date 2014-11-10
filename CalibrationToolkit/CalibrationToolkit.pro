@@ -17,6 +17,7 @@ unix{
     LIBS += -L/usr/lib/x86_64-linux-gnu -lopencv_objdetect
     LIBS += -L/usr/lib/x86_64-linux-gnu -lopencv_contrib
     LIBS += -L/usr/lib/x86_64-linux-gnu -lopencv_calib3d
+    LIBS += -L/usr/lib/x86_64-linux-gnu -lopencv_imgproc
 
     LIBS += -L/opt/ros/indigo/lib -lroscpp
     LIBS += -L/opt/ros/indigo/lib -lrosconsole

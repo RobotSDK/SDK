@@ -10,6 +10,7 @@
 #include<qfiledialog.h>
 #include<qimage.h>
 #include<qdatetime.h>
+#include<qtabwidget.h>
 
 #include<opencv2/opencv.hpp>
 
@@ -31,10 +32,6 @@ public:
 protected:
     QHBoxLayout * layout;
     QVBoxLayout * caliblayout;
-    QPushButton * grabbutton;
-    QPushButton * calibbutton;
-    QPushButton * loadbutton;
-    QPushButton * savebutton;
     cv::Mat extrinsicmat;
     QTableWidget * extrinsicshow;
 signals:
@@ -66,21 +63,30 @@ public:
     ~CalibrateCameraChessboard();
 protected:
     ROSSub<sensor_msgs::ImageConstPtr> * camerasub;
+
     cv::Mat calibimage;
     QLabel * timestampshow;
     QLabel * calibimageshow;
+    cv::vector<cv::Mat> calibimages;
+    QTabWidget * calibimagesshow;
+    QVector<QRgb> colorTable;
+
     cv::Size2i patternnum;
     cv::Size2f patternsize;
     double reprojectionerror;
-    cv::vector<cv::Point3f> grid3dpoints;
-    cv::vector<cv::Point2f> grid2dpoints;
-    QVector<QRgb> colorTable;
+    QLabel * reprojectionerrorshow;
+
+    cv::vector<cv::Point3f> grid3dpoint;
+    cv::vector<cv::vector<cv::Point3f> > grid3dpoints;
+    cv::vector<cv::vector<cv::Point2f> > grid2dpoints;
+
     cv::Mat cameramat;
     QTableWidget * cameramatshow;
     cv::Mat distcoeff;
     QTableWidget * distcoeffshow;
-    cv::Mat chessboardpose;
-    QTableWidget * chessboardposeshow;
+
+    cv::vector<cv::Mat> chessboardposes;
+    QTabWidget * chessboardposeshow;
 protected slots:
     void refreshImageSlot();
 protected:
@@ -91,7 +97,8 @@ protected:
 public:
     cv::Mat getCameraMat();
     cv::Mat getDistCoeff();
-    cv::Mat getChessboardPose();
+    cv::Mat getChessboardPose(int id);
+    cv::vector<cv::Mat> getChessboardPoses();
 };
 
 #endif // CALIBRATIONTOOLKIT_H
