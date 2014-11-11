@@ -13,37 +13,46 @@
 #include<qtabwidget.h>
 
 #include<opencv2/opencv.hpp>
-
-#include<rosinterface.h>
+#include<pcl/point_cloud.h>
+#include<pcl/point_types.h>
+#include<pcl/kdtree/kdtree.h>
+#include<pcl/search/kdtree.h>
 
 #include<sensor_msgs/Image.h>
+#include<sensor_msgs/PointCloud2.h>
+#include<rosinterface.h>
 
 #define EXTRINSICMATSTR "ExtrinsicMat"
 #define CAMERAMAT "CameraMat"
 #define DISTCOEFF "DistCoeff"
 #define CHESSBOARDPOSE "ChessboardPose"
+#define CHESSBOARDVIEWNUM "ChessboardViewNUM"
+#define REPROJECTIONERROR "ReprojectionError"
 
 class CalibrationToolkitBase : public QWidget
 {
     Q_OBJECT
 public:
     CalibrationToolkitBase(QWidget * parent=0);
-    ~CalibrationToolkitBase();
 protected:
     QHBoxLayout * layout;
     QVBoxLayout * caliblayout;
     cv::Mat extrinsicmat;
     QTableWidget * extrinsicshow;
-signals:
-    void calibDataGrabbedSignal();
-    void sensorCalibratedSignal();
-    void calibResultLoadedSignal();
-    void calibResultSavedSignal();
 public slots:
     void grabCalibDataSlot();
     void calibrateSensorSlot();
     void loadCalibResultSlot();
     void saveCalibResultSlot();
+signals:
+    void calibDataGrabbedSignal();
+    void calibDataGrabbedErrorSignal();
+    void sensorCalibratedSignal();
+    void sensorCalibratedErrorSignal();
+    void calibResultLoadedSignal();
+    void calibResultLoadedErrorSignal();
+    void calibResultSavedSignal();
+    void calibResultSavedErrorSignal();
 protected:
     virtual bool grabCalibData()=0;
     virtual bool calibrateSensor()=0;
@@ -55,50 +64,88 @@ public:
     cv::Mat getExtrinsicMat();
 };
 
-class CalibrateROSCameraChessboard : public CalibrationToolkitBase
+class CalibrateCameraBase : public CalibrationToolkitBase
 {
     Q_OBJECT
 public:
-    CalibrateROSCameraChessboard(QString topic, cv::Size2f patternSize, cv::Size2i patternNum, QWidget * parent=0);
-    ~CalibrateROSCameraChessboard();
+    CalibrateCameraBase(QWidget * parent=0);
 protected:
-    ROSSub<sensor_msgs::ImageConstPtr> * camerasub;
-
-    cv::Mat calibimage;
+    QVBoxLayout * imagelayout;
     QLabel * timestampshow;
+    cv::Mat calibimage;
     QLabel * calibimageshow;
-    cv::vector<cv::Mat> calibimages;
-    QTabWidget * calibimagesshow;
     QVector<QRgb> colorTable;
-
-    cv::Size2i patternnum;
-    cv::Size2f patternsize;
-    double reprojectionerror;
-    QLabel * reprojectionerrorshow;
-
-    cv::vector<cv::Point3f> grid3dpoint;
-    cv::vector<cv::vector<cv::Point3f> > grid3dpoints;
-    cv::vector<cv::vector<cv::Point2f> > grid2dpoints;
 
     cv::Mat cameramat;
     QTableWidget * cameramatshow;
     cv::Mat distcoeff;
     QTableWidget * distcoeffshow;
-
-    cv::vector<cv::Mat> chessboardposes;
-    QTabWidget * chessboardposeshow;
 protected slots:
     void refreshImageSlot();
+signals:
+    void imageRefreshedSignal();
+    void imageRefreshedErrorSignal();
 protected:
-    bool grabCalibData();
-    bool calibrateSensor();
-    bool loadCalibResult(cv::FileStorage &fs);
-    bool saveCalibResult(cv::FileStorage &fs);
+    virtual bool refreshImage()=0;
+    bool loadCalibResult(cv::FileStorage & fs);
+    bool saveCalibResult(cv::FileStorage & fs);
 public:
     cv::Mat getCameraMat();
     cv::Mat getDistCoeff();
-    cv::Mat getChessboardPose(int id);
+};
+
+class CalibrateCameraChessboardBase : public CalibrateCameraBase
+{
+    Q_OBJECT
+public:
+    CalibrateCameraChessboardBase(cv::Size2f patternSize, cv::Size2i patternNum, QWidget * parent=0);
+protected:
+    cv::Size2i patternnum;
+    cv::Size2f patternsize;
+
+    cv::vector<cv::Point3f> grid3dpoint;
+    cv::vector<cv::vector<cv::Point3f> > grid3dpoints;
+    cv::vector<cv::vector<cv::Point2f> > grid2dpoints;
+
+    cv::vector<cv::Mat> calibimages;
+    QTabWidget * calibimagesshow;
+
+    cv::vector<cv::Mat> chessboardposes;
+    QTabWidget * chessboardposeshow;
+
+    double reprojectionerror;
+    QLabel * reprojectionerrorshow;
+protected:
+    bool loadCalibResult(cv::FileStorage & fs);
+    bool saveCalibResult(cv::FileStorage & fs);
+public:
+    int getChessboardNum();
     cv::vector<cv::Mat> getChessboardPoses();
+    cv::Mat getChessboardPose(int id);
+    cv::Mat getCalibImage(int id);
+};
+
+class CalibrateCameraChessboardROS : public CalibrateCameraChessboardBase
+{
+    Q_OBJECT
+public:
+    CalibrateCameraChessboardROS(QString topic, u_int32_t queueSize, int interval, cv::Size2f patternSize, cv::Size2i patternNum, QWidget * parent=0);
+    ~CalibrateCameraChessboardROS();
+protected:
+    ROSSub<sensor_msgs::ImageConstPtr> * camerasub;
+protected:
+    bool refreshImage();
+    bool grabCalibData();
+    bool calibrateSensor();
+};
+
+class CalibrateCameraVelodyneChessboardBase : public CalibrateCameraChessboardBase
+{
+    Q_OBJECT
+public:
+    CalibrateCameraVelodyneChessboardBase(cv::Size2f patternSize, cv::Size2i patternNum, QWidget * parent=0);
+protected:
+
 };
 
 #endif // CALIBRATIONTOOLKIT_H

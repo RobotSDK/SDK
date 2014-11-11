@@ -19,16 +19,15 @@ CalibrationToolkitBase::CalibrationToolkitBase(QWidget * parent)
     setResultShow(extrinsicmat,extrinsicshow);
 }
 
-CalibrationToolkitBase::~CalibrationToolkitBase()
-{
-
-}
-
 void CalibrationToolkitBase::grabCalibDataSlot()
 {
     if(grabCalibData())
     {
         emit calibDataGrabbedSignal();
+    }
+    else
+    {
+        emit calibDataGrabbedErrorSignal();
     }
 }
 
@@ -37,6 +36,10 @@ void CalibrationToolkitBase::calibrateSensorSlot()
     if(calibrateSensor())
     {
         emit sensorCalibratedSignal();
+    }
+    else
+    {
+        emit sensorCalibratedErrorSignal();
     }
 }
 
@@ -49,6 +52,10 @@ void CalibrationToolkitBase::loadCalibResultSlot()
         if(loadCalibResult(fs))
         {
             emit calibResultLoadedSignal();
+        }
+        else
+        {
+            emit calibResultLoadedErrorSignal();
         }
         fs.release();
     }
@@ -63,6 +70,10 @@ void CalibrationToolkitBase::saveCalibResultSlot()
         if(saveCalibResult(fs))
         {
             emit calibResultSavedSignal();
+        }
+        else
+        {
+            emit calibResultSavedErrorSignal();
         }
         fs.release();
     }
@@ -102,39 +113,21 @@ cv::Mat CalibrationToolkitBase::getExtrinsicMat()
     return extrinsicmat;
 }
 
-CalibrateROSCameraChessboard::CalibrateROSCameraChessboard(QString topic, cv::Size2f patternSize, cv::Size2i patternNum, QWidget *parent)
+//=========================================================================
+
+CalibrateCameraBase::CalibrateCameraBase(QWidget *parent)
     : CalibrationToolkitBase(parent)
 {
-    patternsize=patternSize;
-    patternnum=patternNum;
-
-    QVBoxLayout * vlayout=new QVBoxLayout;
-    layout->addLayout(vlayout);
+    imagelayout=new QVBoxLayout;
+    layout->addLayout(imagelayout);
 
     timestampshow=new QLabel("Timestamp");
-    vlayout->addWidget(timestampshow);
+    imagelayout->addWidget(timestampshow);
 
-    calibimageshow=new QLabel;
-    vlayout->addWidget(calibimageshow);
+    calibimageshow=new QLabel("Image");
+    imagelayout->addWidget(calibimageshow);
 
-    calibimagesshow=new QTabWidget;
-    vlayout->addWidget(calibimagesshow);
-
-    grid3dpoint.clear();
-    grid3dpoints.clear();
-    int i,j;
-    for(i=0;i<patternnum.height;i++)
-    {
-        for(j=0;j<patternnum.width;j++)
-        {
-            cv::Point3f tmpgrid3dpoint;
-            tmpgrid3dpoint.x=i*patternsize.height;
-            tmpgrid3dpoint.y=j*patternsize.width;
-            tmpgrid3dpoint.z=0;
-            grid3dpoint.push_back(tmpgrid3dpoint);
-        }
-    }
-
+    int i;
     for (i=0; i<256; i++)
     {
         colorTable.push_back(qRgb(i,i,i));
@@ -155,6 +148,71 @@ CalibrateROSCameraChessboard::CalibrateROSCameraChessboard(QString topic, cv::Si
     distcoeffshow=new QTableWidget;
     caliblayout->addWidget(distcoeffshow);
     setResultShow(distcoeff,distcoeffshow);
+}
+
+void CalibrateCameraBase::refreshImageSlot()
+{
+    if(refreshImage())
+    {
+        emit imageRefreshedSignal();
+    }
+    else
+    {
+        emit imageRefreshedErrorSignal();
+    }
+}
+
+bool CalibrateCameraBase::loadCalibResult(cv::FileStorage &fs)
+{
+    CalibrationToolkitBase::loadCalibResult(fs);
+    fs[CAMERAMAT]>>cameramat;
+    setResultShow(cameramat,cameramatshow);
+    fs[DISTCOEFF]>>distcoeff;
+    setResultShow(distcoeff,distcoeffshow);
+    return 1;
+}
+
+bool CalibrateCameraBase::saveCalibResult(cv::FileStorage &fs)
+{
+    CalibrationToolkitBase::saveCalibResult(fs);
+    fs<<CAMERAMAT<<cameramat;
+    fs<<DISTCOEFF<<distcoeff;
+    return 1;
+}
+
+cv::Mat CalibrateCameraBase::getCameraMat()
+{
+    return cameramat;
+}
+
+cv::Mat CalibrateCameraBase::getDistCoeff()
+{
+    return distcoeff;
+}
+
+//=========================================================================
+
+CalibrateCameraChessboardBase::CalibrateCameraChessboardBase(cv::Size2f patternSize, cv::Size2i patternNum, QWidget *parent)
+    : CalibrateCameraBase(parent)
+{
+    patternsize=patternSize;
+    patternnum=patternNum;
+
+    int i,j;
+    for(i=0;i<patternnum.height;i++)
+    {
+        for(j=0;j<patternnum.width;j++)
+        {
+            cv::Point3f tmpgrid3dpoint;
+            tmpgrid3dpoint.x=i*patternsize.height;
+            tmpgrid3dpoint.y=j*patternsize.width;
+            tmpgrid3dpoint.z=0;
+            grid3dpoint.push_back(tmpgrid3dpoint);
+        }
+    }
+
+    calibimagesshow=new QTabWidget;
+    imagelayout->addWidget(calibimagesshow);
 
     QLabel * chessboardposelabel=new QLabel(CHESSBOARDPOSE);
     caliblayout->addWidget(chessboardposelabel);
@@ -162,28 +220,100 @@ CalibrateROSCameraChessboard::CalibrateROSCameraChessboard(QString topic, cv::Si
     chessboardposeshow=new QTabWidget;
     caliblayout->addWidget(chessboardposeshow);
 
-    QLabel * reprojectionerrorlabel=new QLabel("Reprojection Error");
+    QLabel * reprojectionerrorlabel=new QLabel(REPROJECTIONERROR);
     caliblayout->addWidget(reprojectionerrorlabel);
 
     reprojectionerrorshow=new QLabel;
     caliblayout->addWidget(reprojectionerrorshow);
+}
 
-    camerasub=new ROSSub<sensor_msgs::ImageConstPtr>(topic,1000,10);
+bool CalibrateCameraChessboardBase::loadCalibResult(cv::FileStorage &fs)
+{
+    CalibrateCameraBase::loadCalibResult(fs);
+
+    cv::Mat tmperror;
+    fs[REPROJECTIONERROR]>>tmperror;
+    reprojectionerror=tmperror.at<double>(0);
+    reprojectionerrorshow->setText(QString("%1").arg(reprojectionerror));
+
+    cv::Mat viewnum;
+    fs[CHESSBOARDVIEWNUM]>>viewnum;
+    int i,n=viewnum.at<u_int16_t>(0);
+    chessboardposes.resize(n);
+    chessboardposeshow->clear();
+    for(i=0;i<n;i++)
+    {
+        fs[QString("%1_%2").arg(CHESSBOARDPOSE).arg(i).toStdString()]>>chessboardposes[i];
+        QTableWidget * tmpchessboardposeshow=new QTableWidget;
+        chessboardposeshow->addTab(tmpchessboardposeshow,QString("Chessboard_%1").arg(i));
+        setResultShow(chessboardposes[i],tmpchessboardposeshow);
+    }
+
+    return 1;
+}
+
+bool CalibrateCameraChessboardBase::saveCalibResult(cv::FileStorage &fs)
+{
+    CalibrateCameraBase::saveCalibResult(fs);
+
+    cv::Mat tmperror(1,1,CV_64F);
+    tmperror.at<double>(0)=reprojectionerror;
+    fs<<REPROJECTIONERROR<<tmperror;
+
+
+    cv::Mat viewnum(1,1,CV_16U);
+    viewnum.at<u_int16_t>(0)=chessboardposes.size();
+    fs<<CHESSBOARDVIEWNUM<<viewnum;
+    int i,n=chessboardposes.size();
+    for(i=0;i<n;i++)
+    {
+        fs<<QString("%1_%2").arg(CHESSBOARDPOSE).arg(i).toStdString()<<chessboardposes[i];
+    }
+
+    return 1;
+}
+
+int CalibrateCameraChessboardBase::getChessboardNum()
+{
+    return chessboardposes.size();
+}
+
+cv::vector<cv::Mat> CalibrateCameraChessboardBase::getChessboardPoses()
+{
+    return chessboardposes;
+}
+
+cv::Mat CalibrateCameraChessboardBase::getChessboardPose(int id)
+{
+    return chessboardposes[id];
+}
+
+cv::Mat CalibrateCameraChessboardBase::getCalibImage(int id)
+{
+    return calibimages[id];
+}
+
+//=========================================================================
+
+CalibrateCameraChessboardROS::CalibrateCameraChessboardROS(QString topic, u_int32_t queueSize, int interval, cv::Size2f patternSize, cv::Size2i patternNum, QWidget *parent)
+    : CalibrateCameraChessboardBase(patternSize,patternNum,parent)
+{
+    camerasub=new ROSSub<sensor_msgs::ImageConstPtr>(topic,queueSize,interval);
     connect(camerasub,SIGNAL(receiveMessageSignal()),this,SLOT(refreshImageSlot()));
     camerasub->startReceiveSlot();
 }
 
-CalibrateROSCameraChessboard::~CalibrateROSCameraChessboard()
+CalibrateCameraChessboardROS::~CalibrateCameraChessboardROS()
 {
-
+    delete camerasub;
 }
 
-void CalibrateROSCameraChessboard::refreshImageSlot()
+bool CalibrateCameraChessboardROS::refreshImage()
 {
     sensor_msgs::ImageConstPtr msg=camerasub->getMessage();
     if(msg==NULL)
     {
-        return;
+        return 1;
     }
     QTime timestamp=QTime::fromMSecsSinceStartOfDay((msg->header.stamp.sec%(24*60*60))*1000+msg->header.stamp.nsec/1000000);
     timestampshow->setText(timestamp.toString("HH:mm:ss:zzz"));
@@ -207,10 +337,10 @@ void CalibrateROSCameraChessboard::refreshImageSlot()
     {
         calibimageshow->setText("Not Supported");
     }
-    return;
+    return 1;
 }
 
-bool CalibrateROSCameraChessboard::grabCalibData()
+bool CalibrateCameraChessboardROS::grabCalibData()
 {
     camerasub->stopReceiveSlot();
     cv::vector<cv::Point2f> grid2dpoint;
@@ -248,7 +378,7 @@ bool CalibrateROSCameraChessboard::grabCalibData()
     return 1;
 }
 
-bool CalibrateROSCameraChessboard::calibrateSensor()
+bool CalibrateCameraChessboardROS::calibrateSensor()
 {
     cv::vector<cv::Mat> rvecs;
     cv::vector<cv::Mat> tvecs;
@@ -286,62 +416,5 @@ bool CalibrateROSCameraChessboard::calibrateSensor()
     return 1;
 }
 
-bool CalibrateROSCameraChessboard::loadCalibResult(cv::FileStorage &fs)
-{
-    CalibrationToolkitBase::loadCalibResult(fs);
-    fs[CAMERAMAT]>>cameramat;
-    fs[DISTCOEFF]>>distcoeff;
-    setResultShow(cameramat,cameramatshow);
-    setResultShow(distcoeff,distcoeffshow);
+//=========================================================================
 
-    cv::Mat imagenum;
-    fs["ImageNum"]>>imagenum;
-    int i,n=imagenum.at<u_int16_t>(0);
-    chessboardposes.resize(n);
-    chessboardposeshow->clear();
-    for(i=0;i<n;i++)
-    {
-        fs[QString("%1_%2").arg(CHESSBOARDPOSE).arg(i).toStdString()]>>chessboardposes[i];
-        QTableWidget * tmpchessboardposeshow=new QTableWidget;
-        chessboardposeshow->addTab(tmpchessboardposeshow,QString("Chessboard_%1").arg(i));
-        setResultShow(chessboardposes[i],tmpchessboardposeshow);
-    }
-    return 1;
-}
-
-bool CalibrateROSCameraChessboard::saveCalibResult(cv::FileStorage &fs)
-{
-    CalibrationToolkitBase::saveCalibResult(fs);
-    fs<<CAMERAMAT<<cameramat;
-    fs<<DISTCOEFF<<distcoeff;
-
-    cv::Mat imagenum(1,1,CV_16U);
-    imagenum.at<u_int16_t>(0,0)=chessboardposes.size();
-    fs<<"ImageNum"<<imagenum;
-    int i,n=chessboardposes.size();
-    for(i=0;i<n;i++)
-    {
-        fs<<QString("%1_%2").arg(CHESSBOARDPOSE).arg(i).toStdString()<<chessboardposes[i];
-    }
-    return 1;
-}
-
-cv::Mat CalibrateROSCameraChessboard::getCameraMat()
-{
-    return cameramat;
-}
-
-cv::Mat CalibrateROSCameraChessboard::getDistCoeff()
-{
-    return distcoeff;
-}
-
-cv::Mat CalibrateROSCameraChessboard::getChessboardPose(int id)
-{
-    return chessboardposes[id];
-}
-
-cv::vector<cv::Mat> CalibrateROSCameraChessboard::getChessboardPoses()
-{
-    return chessboardposes;
-}
