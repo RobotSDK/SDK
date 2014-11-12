@@ -180,7 +180,7 @@ protected:
     QTabWidget * calibvelodynesshow;
 public slots:
     void refreshVelodyneSlot();
-    void selectionResultSlot(pcl::PointCloud<pcl::PointXYZI>::Ptr selection, int id);
+    void extractionResultSlot(pcl::PointCloud<pcl::PointXYZI>::Ptr extraction, int id);
 signals:
     void velodyneRefreshedSignal();
     void velodyneRefreshedErrorSignal();

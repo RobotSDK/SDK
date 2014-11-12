@@ -114,9 +114,6 @@ void GLViewer::setProjection()
     }
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    glGetDoublev (GL_MODELVIEW_MATRIX,cameraparameters.modelview);
-    glGetDoublev (GL_PROJECTION_MATRIX,cameraparameters.projection);
-    glGetIntegerv(GL_VIEWPORT,cameraparameters.viewport);
     return;
 }
 
@@ -327,13 +324,13 @@ void GLViewer::keyPressEvent(QKeyEvent * event)
 void GLViewer::mousePressEvent(QMouseEvent *event)
 {
     setFocus();
-    emit mousePositionSignal(*event,cameraparameters);
+    emit mousePositionSignal(event,&cameraparameters);
     return;
 }
 
 void GLViewer::mouseReleaseEvent(QMouseEvent *event)
 {
-    emit mousePositionSignal(*event,cameraparameters);
+    emit mousePositionSignal(event,&cameraparameters);
     return;
 }
 
@@ -354,7 +351,7 @@ void GLViewer::wheelEvent(QWheelEvent * event)
 
 void GLViewer::mouseMoveEvent(QMouseEvent *event)
 {
-    emit mousePositionSignal(*event,cameraparameters);
+    emit mousePositionSignal(event,&cameraparameters);
     return;
 }
 
@@ -564,84 +561,4 @@ void GLViewer::setDisplayListTransform(GLuint listid, Eigen::Matrix4d transform,
         displaylist[listid].transform=transform;
     }
     return;
-}
-
-MouseCameraEventQueue::MouseCameraEventQueue(int queueSizeLimit, QObject *parent)
-    : QObject(parent)
-{
-    receivemouseposition=0;
-    queuesizelimit=queueSizeLimit;
-}
-
-MouseCameraEventQueue::~MouseCameraEventQueue()
-{
-    receivemouseposition=0;
-    mouseevents.clear();
-    cameraparameters.clear();
-}
-
-void MouseCameraEventQueue::mousePositionSlot(QMouseEvent event, CAMERAPARAMETERS parameters)
-{
-    lock.lockForWrite();
-    if(receivemouseposition)
-    {        
-        mouseevents.push_back(event);
-        cameraparameters.push_back(parameters);
-        if(queuesizelimit>0&&mouseevents.size()>queuesizelimit)
-        {
-            mouseevents.pop_front();
-            cameraparameters.pop_front();
-        }
-        emit interactiveSignal();
-    }
-    lock.unlock();
-}
-
-void MouseCameraEventQueue::startReceiveMouseCameraEventSlot()
-{
-    lock.lockForWrite();
-    receivemouseposition=1;
-    mouseevents.clear();
-    cameraparameters.clear();
-    lock.unlock();
-}
-
-void MouseCameraEventQueue::stopReceiveMouseCameraEventSlot()
-{
-    lock.lockForWrite();
-    receivemouseposition=0;
-    lock.unlock();
-}
-
-void MouseCameraEventQueue::getInteraction(QMouseEvent &event, CAMERAPARAMETERS &parameters)
-{
-    lock.lockForWrite();
-    if(mouseevents.size()>0)
-    {
-        event=mouseevents.front();
-        parameters=cameraparameters.front();
-        mouseevents.pop_front();
-        cameraparameters.pop_front();
-    }
-    lock.unlock();
-}
-
-InteractiveGLViewer::InteractiveGLViewer(int queueSizeLimit, QWidget *parent)
-    : GLViewer(parent)
-{
-    mousecameraeventqueue=new MouseCameraEventQueue(queueSizeLimit,NULL);
-    mousecameraeventqueue->moveToThread(&thread);
-    connect(this,SIGNAL(mousePositionSignal(QMouseEvent,CAMERAPARAMETERS)),mousecameraeventqueue,SLOT(mousePositionSlot(QMouseEvent,CAMERAPARAMETERS)));
-    thread.start();
-}
-
-InteractiveGLViewer::~InteractiveGLViewer()
-{
-    thread.exit();
-    thread.wait();
-    if(mousecameraeventqueue!=NULL)
-    {
-        delete mousecameraeventqueue;
-        mousecameraeventqueue=NULL;
-    }
 }
