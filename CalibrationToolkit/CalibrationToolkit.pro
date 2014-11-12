@@ -1,5 +1,7 @@
-SOURCES += calibrationtoolkit.cpp
-HEADERS += calibrationtoolkit.h
+SOURCES += calibrationtoolkit.cpp \
+    selectionwidget.cpp
+HEADERS += calibrationtoolkit.h \
+    selectionwidget.h
 
 unix{
     INCLUDEPATH += /usr/include
@@ -12,6 +14,7 @@ unix{
     LIBS += -L/usr/lib/x86_64-linux-gnu -lopencv_imgproc
 
     INCLUDEPATH += /usr/include/pcl-1.7
+    INCLUDEPATH += /usr/include/eigen3
     LIBS += -L/usr/lib -lpcl_common
     LIBS += -L/usr/lib -lpcl_filters
     LIBS += -L/usr/lib -lpcl_search
@@ -28,11 +31,16 @@ unix{
     LIBS += -L/opt/ros/indigo/lib -lrosconsole_backend_interface
     LIBS += -L/usr/lib/x86_64-linux-gnu -lboost_system
 
+    LIBS += -L/usr/lib/x86_64-linux-gnu -lnlopt
+
     INCLUDEPATH += $$(HOME)/SDK/ROSInterface/include
+    INCLUDEPATH += $$(HOME)/SDK/GLViewer/include
     CONFIG(debug, debug|release){
-        LIBS += -L$$(HOME)/SDK/ROSInterface/lib/ -lROSInterface_Debug
+        LIBS += -L$$(HOME)/SDK/ROSInterface/lib -lROSInterface_Debug
+        LIBS += -L$$(HOME)/SDK/GLViewer/lib -lGLViewer_Debug
     }else{
-        LIBS += -L$$(HOME)/SDK/ROSInterface/lib/ -lROSInterface_Release
+        LIBS += -L$$(HOME)/SDK/ROSInterface/lib -lROSInterface_Release
+        LIBS += -L$$(HOME)/SDK/GLViewer/lib -lGLViewer_Release
     }
 }
 

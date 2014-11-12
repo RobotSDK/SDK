@@ -4,19 +4,14 @@
 CalibrationToolkitBase::CalibrationToolkitBase(QWidget * parent)
     : QWidget(parent)
 {
-    layout=new QHBoxLayout;
+    QHBoxLayout * layout=new QHBoxLayout;
     this->setLayout(layout);
 
-    caliblayout=new QVBoxLayout;
-    layout->addLayout(caliblayout);
+    splitter=new QSplitter(Qt::Horizontal);
+    layout->addWidget(splitter);
 
-    QLabel * extrinsicmatlabel=new QLabel(EXTRINSICMATSTR);
-    caliblayout->addWidget(extrinsicmatlabel);
-
-    extrinsicmat=cv::Mat::eye(4,4,CV_64F);
-    extrinsicshow=new QTableWidget;
-    caliblayout->addWidget(extrinsicshow);
-    setResultShow(extrinsicmat,extrinsicshow);
+    calibsplitter=new QSplitter(Qt::Vertical);
+    splitter->addWidget(calibsplitter);
 }
 
 void CalibrationToolkitBase::grabCalibDataSlot()
@@ -79,19 +74,6 @@ void CalibrationToolkitBase::saveCalibResultSlot()
     }
 }
 
-bool CalibrationToolkitBase::loadCalibResult(cv::FileStorage &fs)
-{
-    fs[EXTRINSICMATSTR]>>extrinsicmat;
-    setResultShow(extrinsicmat,extrinsicshow);
-    return 1;
-}
-
-bool CalibrationToolkitBase::saveCalibResult(cv::FileStorage &fs)
-{
-    fs<<EXTRINSICMATSTR<<extrinsicmat;
-    return 1;
-}
-
 void CalibrationToolkitBase::setResultShow(cv::Mat result, QTableWidget *show)
 {
     int i,n=result.rows;
@@ -108,46 +90,45 @@ void CalibrationToolkitBase::setResultShow(cv::Mat result, QTableWidget *show)
     }
 }
 
-cv::Mat CalibrationToolkitBase::getExtrinsicMat()
-{
-    return extrinsicmat;
-}
-
 //=========================================================================
 
 CalibrateCameraBase::CalibrateCameraBase(QWidget *parent)
     : CalibrationToolkitBase(parent)
 {
-    imagelayout=new QVBoxLayout;
-    layout->addLayout(imagelayout);
+    cameracalibtab=new QTabWidget;
+    calibsplitter->addWidget(cameracalibtab);
 
-    timestampshow=new QLabel("Timestamp");
-    imagelayout->addWidget(timestampshow);
+    cameraextrinsicmat=cv::Mat::eye(4,4,CV_64F);
+    cameraextrinsicshow=new QTableWidget;
+    cameracalibtab->addTab(cameraextrinsicshow,CAMERAEXTRINSICMATSTR);
+    setResultShow(cameraextrinsicmat,cameraextrinsicshow);
+
+    cameramat=cv::Mat::zeros(3,3,CV_64F);
+    cameramatshow=new QTableWidget;
+    cameracalibtab->addTab(cameramatshow,CAMERAMAT);
+    setResultShow(cameramat,cameramatshow);
+
+    distcoeff=cv::Mat::eye(1,8,CV_64F);
+    distcoeffshow=new QTableWidget;
+    cameracalibtab->addTab(distcoeffshow,DISTCOEFF);
+    setResultShow(distcoeff,distcoeffshow);
+
+    imagesplitter=new QSplitter(Qt::Vertical);
+    splitter->addWidget(imagesplitter);
+
+    cameraimagetab=new QTabWidget;
+    imagesplitter->addWidget(cameraimagetab);
 
     calibimageshow=new QLabel("Image");
-    imagelayout->addWidget(calibimageshow);
+    QScrollArea * scrollarea=new QScrollArea;
+    scrollarea->setWidget(calibimageshow);
+    cameraimagetab->addTab(scrollarea,"Timestamp");
 
     int i;
     for (i=0; i<256; i++)
     {
         colorTable.push_back(qRgb(i,i,i));
     }
-
-    QLabel * cameramatlabel=new QLabel(CAMERAMAT);
-    caliblayout->addWidget(cameramatlabel);
-
-    cameramat=cv::Mat::zeros(3,3,CV_64F);
-    cameramatshow=new QTableWidget;
-    caliblayout->addWidget(cameramatshow);
-    setResultShow(cameramat,cameramatshow);
-
-    QLabel * distcoefflabel=new QLabel(DISTCOEFF);
-    caliblayout->addWidget(distcoefflabel);
-
-    distcoeff=cv::Mat::eye(1,8,CV_64F);
-    distcoeffshow=new QTableWidget;
-    caliblayout->addWidget(distcoeffshow);
-    setResultShow(distcoeff,distcoeffshow);
 }
 
 void CalibrateCameraBase::refreshImageSlot()
@@ -162,9 +143,36 @@ void CalibrateCameraBase::refreshImageSlot()
     }
 }
 
+bool CalibrateCameraBase::refreshImage()
+{
+    cameraimagetab->setTabText(0,cameratimestamp.toString("HH:mm:ss:zzz"));
+    if(calibimage.type()==CV_8UC3)
+    {
+        QImage img(calibimage.data, calibimage.cols, calibimage.rows, calibimage.step, QImage::Format_RGB888);
+        img=img.rgbSwapped();
+        calibimageshow->setPixmap(QPixmap::fromImage(img));
+        calibimageshow->resize(img.size());
+    }
+    else if(calibimage.type()==CV_8UC1)
+    {
+        QImage img(calibimage.data, calibimage.cols, calibimage.rows, calibimage.step, QImage::Format_Indexed8);
+        img.setColorTable(colorTable);
+        calibimageshow->setPixmap(QPixmap::fromImage(img));
+        calibimageshow->resize(img.size());
+    }
+    else
+    {
+        calibimageshow->setText("Not Supported");
+        cameraimagetab->setCurrentIndex(0);
+        return 0;
+    }
+    return 1;
+}
+
 bool CalibrateCameraBase::loadCalibResult(cv::FileStorage &fs)
 {
-    CalibrationToolkitBase::loadCalibResult(fs);
+    fs[CAMERAEXTRINSICMATSTR]>>cameraextrinsicmat;
+    setResultShow(cameraextrinsicmat,cameraextrinsicshow);
     fs[CAMERAMAT]>>cameramat;
     setResultShow(cameramat,cameramatshow);
     fs[DISTCOEFF]>>distcoeff;
@@ -174,10 +182,15 @@ bool CalibrateCameraBase::loadCalibResult(cv::FileStorage &fs)
 
 bool CalibrateCameraBase::saveCalibResult(cv::FileStorage &fs)
 {
-    CalibrationToolkitBase::saveCalibResult(fs);
+    fs<<CAMERAEXTRINSICMATSTR<<cameraextrinsicmat;
     fs<<CAMERAMAT<<cameramat;
     fs<<DISTCOEFF<<distcoeff;
     return 1;
+}
+
+cv::Mat CalibrateCameraBase::getCameraExtrinsicMat()
+{
+    return cameraextrinsicmat;
 }
 
 cv::Mat CalibrateCameraBase::getCameraMat()
@@ -209,28 +222,57 @@ CalibrateCameraChessboardBase::CalibrateCameraChessboardBase(cv::Size2f patternS
             tmpgrid3dpoint.z=0;
             grid3dpoint.push_back(tmpgrid3dpoint);
         }
-    }
+    }    
 
-    calibimagesshow=new QTabWidget;
-    imagelayout->addWidget(calibimagesshow);
-
-    QLabel * chessboardposelabel=new QLabel(CHESSBOARDPOSE);
-    caliblayout->addWidget(chessboardposelabel);
+    chessboardtab=new QTabWidget;
+    calibsplitter->addWidget(chessboardtab);
 
     chessboardposeshow=new QTabWidget;
-    caliblayout->addWidget(chessboardposeshow);
-
-    QLabel * reprojectionerrorlabel=new QLabel(REPROJECTIONERROR);
-    caliblayout->addWidget(reprojectionerrorlabel);
+    chessboardtab->addTab(chessboardposeshow,CHESSBOARDPOSE);
 
     reprojectionerrorshow=new QLabel;
-    caliblayout->addWidget(reprojectionerrorshow);
+    chessboardtab->addTab(reprojectionerrorshow,REPROJECTIONERROR);
+
+    calibimagesshow=new QTabWidget;
+    imagesplitter->addWidget(calibimagesshow);
+}
+
+bool CalibrateCameraChessboardBase::calibrateSensor()
+{
+    cv::vector<cv::Mat> rvecs;
+    cv::vector<cv::Mat> tvecs;
+    cv::Size imgsize;
+    imgsize.height=calibimage.rows;
+    imgsize.width=calibimage.cols;
+    cameramat.at<double>(0,2)=imgsize.height/2;
+    cameramat.at<double>(1,2)=imgsize.width/2;
+    reprojectionerror=cv::calibrateCamera(grid3dpoints,grid2dpoints,imgsize,cameramat,distcoeff,rvecs,tvecs);
+    reprojectionerrorshow->setText(QString("%1").arg(reprojectionerror));
+    setResultShow(cameramat,cameramatshow);
+    setResultShow(distcoeff,distcoeffshow);
+    int i,n=rvecs.size();
+    for(i=0;i<n;i++)
+    {
+        cv::Mat chessboardpose=cv::Mat::eye(4,4,CV_64F);
+        cv::Mat tmprmat=cv::Mat(3,3,CV_64F);
+        cv::Rodrigues(rvecs[i],tmprmat);
+        int j,k;
+        for(j=0;j<3;j++)
+        {
+            for(k=0;k<3;k++)
+            {
+                chessboardpose.at<double>(j,k)=tmprmat.at<double>(j,k);
+            }
+            chessboardpose.at<double>(j,3)=tvecs[i].at<double>(j);
+        }
+        chessboardposes[i]=chessboardpose;
+        setResultShow(chessboardpose,(QTableWidget *)(chessboardposeshow->widget(i)));
+    }
+    return 1;
 }
 
 bool CalibrateCameraChessboardBase::loadCalibResult(cv::FileStorage &fs)
 {
-    CalibrateCameraBase::loadCalibResult(fs);
-
     cv::Mat tmperror;
     fs[REPROJECTIONERROR]>>tmperror;
     reprojectionerror=tmperror.at<double>(0);
@@ -249,17 +291,14 @@ bool CalibrateCameraChessboardBase::loadCalibResult(cv::FileStorage &fs)
         setResultShow(chessboardposes[i],tmpchessboardposeshow);
     }
 
-    return 1;
+    return CalibrateCameraBase::loadCalibResult(fs);
 }
 
 bool CalibrateCameraChessboardBase::saveCalibResult(cv::FileStorage &fs)
 {
-    CalibrateCameraBase::saveCalibResult(fs);
-
     cv::Mat tmperror(1,1,CV_64F);
     tmperror.at<double>(0)=reprojectionerror;
     fs<<REPROJECTIONERROR<<tmperror;
-
 
     cv::Mat viewnum(1,1,CV_16U);
     viewnum.at<u_int16_t>(0)=chessboardposes.size();
@@ -270,7 +309,7 @@ bool CalibrateCameraChessboardBase::saveCalibResult(cv::FileStorage &fs)
         fs<<QString("%1_%2").arg(CHESSBOARDPOSE).arg(i).toStdString()<<chessboardposes[i];
     }
 
-    return 1;
+    return CalibrateCameraBase::saveCalibResult(fs);
 }
 
 int CalibrateCameraChessboardBase::getChessboardNum()
@@ -313,31 +352,24 @@ bool CalibrateCameraChessboardROS::refreshImage()
     sensor_msgs::ImageConstPtr msg=camerasub->getMessage();
     if(msg==NULL)
     {
-        return 1;
+        return 0;
     }
-    QTime timestamp=QTime::fromMSecsSinceStartOfDay((msg->header.stamp.sec%(24*60*60))*1000+msg->header.stamp.nsec/1000000);
-    timestampshow->setText(timestamp.toString("HH:mm:ss:zzz"));
+    cameratimestamp=QTime::fromMSecsSinceStartOfDay((msg->header.stamp.sec%(24*60*60))*1000+msg->header.stamp.nsec/1000000);
     void * data=(void *)(msg->data.data());
     if(QString::fromStdString(msg->encoding)=="rgb8")
     {
         cv::Mat tmpimage=cv::Mat(msg->height,msg->width,CV_8UC3,data);
         cv::cvtColor(tmpimage,calibimage,CV_BGR2RGB);
-        QImage img(calibimage.data, calibimage.cols, calibimage.rows, calibimage.step, QImage::Format_RGB888);
-        img=img.rgbSwapped();
-        calibimageshow->setPixmap(QPixmap::fromImage(img));
     }
     else if(QString::fromStdString(msg->encoding)=="mono8")
     {
         calibimage=cv::Mat(msg->height,msg->width,CV_8UC1,data);
-        QImage img(calibimage.data, calibimage.cols, calibimage.rows, calibimage.step, QImage::Format_Indexed8);
-        img.setColorTable(colorTable);
-        calibimageshow->setPixmap(QPixmap::fromImage(img));
     }
     else
     {
-        calibimageshow->setText("Not Supported");
+        return 0;
     }
-    return 1;
+    return CalibrateCameraBase::refreshImage();
 }
 
 bool CalibrateCameraChessboardROS::grabCalibData()
@@ -354,6 +386,10 @@ bool CalibrateCameraChessboardROS::grabCalibData()
     grid3dpoints.push_back(grid3dpoint);
     grid2dpoints.push_back(grid2dpoint);
 
+    chessboardposes.push_back(cv::Mat::eye(4,4,CV_64F));
+    QTableWidget * tmpchessboardtable=new QTableWidget;
+    chessboardposeshow->addTab(tmpchessboardtable,QString("Chessboard_%1").arg(calibimages.size()-1));
+
     cv::Mat tmpimage=calibimages.back();
     cv::drawChessboardCorners(tmpimage,patternnum,grid2dpoint,1);
     if(tmpimage.type()==CV_8UC3)
@@ -362,8 +398,10 @@ bool CalibrateCameraChessboardROS::grabCalibData()
         img=img.rgbSwapped();
         QLabel * tmpcalibimageshow=new QLabel;
         tmpcalibimageshow->setPixmap(QPixmap::fromImage(img));
-        calibimagesshow->addTab(tmpcalibimageshow,QString("Image_%1").arg(calibimages.size()-1));
-        calibimagesshow->setCurrentWidget(tmpcalibimageshow);
+        QScrollArea * scrollarea=new QScrollArea;
+        scrollarea->setWidget(tmpcalibimageshow);
+        calibimagesshow->addTab(scrollarea,QString("Image_%1").arg(calibimages.size()-1));
+        calibimagesshow->setCurrentWidget(scrollarea);
     }
     else if(tmpimage.type()==CV_8UC1)
     {
@@ -371,50 +409,356 @@ bool CalibrateCameraChessboardROS::grabCalibData()
         img.setColorTable(colorTable);
         QLabel * tmpcalibimageshow=new QLabel;
         tmpcalibimageshow->setPixmap(QPixmap::fromImage(img));
-        calibimagesshow->addTab(tmpcalibimageshow,QString("Image_%1").arg(calibimages.size()-1));
-        calibimagesshow->setCurrentWidget(tmpcalibimageshow);
+        QScrollArea * scrollarea=new QScrollArea;
+        scrollarea->setWidget(tmpcalibimageshow);
+        calibimagesshow->addTab(scrollarea,QString("Image_%1").arg(calibimages.size()-1));
+        calibimagesshow->setCurrentWidget(scrollarea);
     }
     camerasub->startReceiveSlot();
     return 1;
 }
 
-bool CalibrateCameraChessboardROS::calibrateSensor()
+//=========================================================================
+
+CalibrateCameraVelodyneChessboardBase::CalibrateCameraVelodyneChessboardBase(float maxRange, cv::Size2f patternSize, cv::Size2i patternNum, QWidget *parent)
+    : CalibrateCameraChessboardBase(patternSize,patternNum,parent)
 {
-    cv::vector<cv::Mat> rvecs;
-    cv::vector<cv::Mat> tvecs;
-    cv::Size imgsize;
-    imgsize.height=calibimage.rows;
-    imgsize.width=calibimage.cols;
-    cameramat.at<double>(0,2)=imgsize.height/2;
-    cameramat.at<double>(1,2)=imgsize.width/2;
-    reprojectionerror=cv::calibrateCamera(grid3dpoints,grid2dpoints,imgsize,cameramat,distcoeff,rvecs,tvecs);
-    reprojectionerrorshow->setText(QString("%1").arg(reprojectionerror));
-    setResultShow(cameramat,cameramatshow);
-    setResultShow(distcoeff,distcoeffshow);
-    int i,n=rvecs.size();
-    chessboardposes.clear();
-    chessboardposeshow->clear();
+    maxrange=maxRange;
+
+    calibvelodynetab=new QTabWidget;
+    calibsplitter->addWidget(calibvelodynetab);
+
+    calibvelodynepointstab=new QTabWidget;
+    calibvelodynetab->addTab(calibvelodynepointstab,"Chessboard Points");
+
+    calibrationerrorshow=new QLabel;
+    calibvelodynetab->addTab(calibrationerrorshow,CALIBRATIONERROR);
+
+    velodynesplitter=new QSplitter(Qt::Vertical);
+    splitter->addWidget(velodynesplitter);
+
+    velodynetab=new QTabWidget;
+    velodynesplitter->addWidget(velodynetab);
+
+    calibvelodyneviewer=new GLViewer;
+    velodynetab->addTab(calibvelodyneviewer,"Timestamp");
+
+    calibvelodyneviewer->makeCurrent();
+    calibvelodynedisplaylist=glGenLists(1);
+    calibvelodyneviewer->addDisplayList(calibvelodynedisplaylist);
+    calibvelodyneviewer->update();
+
+    calibvelodynesshow=new QTabWidget;
+    velodynesplitter->addWidget(calibvelodynesshow);
+}
+
+void CalibrateCameraVelodyneChessboardBase::refreshVelodyneSlot()
+{
+    if(refreshVelodyne())
+    {
+        emit velodyneRefreshedSignal();
+    }
+    else
+    {
+        emit velodyneRefreshedErrorSignal();
+    }
+}
+
+void CalibrateCameraVelodyneChessboardBase::selectionResultSlot(pcl::PointCloud<pcl::PointXYZI>::Ptr selection, int id)
+{
+    calibvelodynes[id]=selection;
+    QTableWidget * table=(QTableWidget *)(calibvelodynepointstab->widget(id));
+    table->clear();
+    table->setRowCount(selection->points.size());
+    table->setColumnCount(4);
+    int i,n=selection->points.size();
     for(i=0;i<n;i++)
     {
-        cv::Mat chessboardpose=cv::Mat::eye(4,4,CV_64F);
-        cv::Mat tmprmat=cv::Mat(3,3,CV_64F);
-        cv::Rodrigues(rvecs[i],tmprmat);
-        int j,k;
-        for(j=0;j<3;j++)
-        {
-            for(k=0;k<3;k++)
-            {
-                chessboardpose.at<double>(j,k)=tmprmat.at<double>(j,k);
-            }
-            chessboardpose.at<double>(j,3)=tvecs[i].at<double>(j);
-        }
-        chessboardposes.push_back(chessboardpose.clone());
-        QTableWidget * tmpchessboardposeshow=new QTableWidget;
-        chessboardposeshow->addTab(tmpchessboardposeshow,QString("Chessboard_%1").arg(i));
-        setResultShow(chessboardpose,tmpchessboardposeshow);
+        table->setItem(i,0,new QTableWidgetItem(QString("%1").arg(selection->points[i].x)));
+        table->setItem(i,1,new QTableWidgetItem(QString("%1").arg(selection->points[i].y)));
+        table->setItem(i,2,new QTableWidgetItem(QString("%1").arg(selection->points[i].z)));
+        table->setItem(i,3,new QTableWidgetItem(QString("%1").arg(selection->points[i].intensity)));
     }
+    calibvelodynepointstab->setCurrentIndex(id);
+}
+
+bool CalibrateCameraVelodyneChessboardBase::refreshVelodyne()
+{
+    velodynetab->setTabText(0,velodynetimestamp.toString("HH:mm:ss:zzz"));
+
+    calibvelodyneviewer->makeCurrent();
+    int i,n=calibvelodyne->height*calibvelodyne->width;
+    QVector<float> colors(3*n);
+    char * data=(char *)(calibvelodyne->data.data());
+    for(i=0;i<n;i++)
+    {
+        float * base=(float *)(data+i*calibvelodyne->point_step);
+        colors[i*3+0]=base[4]/255.0;
+        colors[i*3+1]=base[4]/255.0;
+        colors[i*3+2]=base[4]/255.0;
+    }
+
+    glEnableClientState(GL_VERTEX_ARRAY);
+    glEnableClientState(GL_COLOR_ARRAY);
+
+    glVertexPointer(3,GL_FLOAT,calibvelodyne->point_step,calibvelodyne->data.data());
+    glColorPointer(3,GL_FLOAT,3*sizeof(float),colors.data());
+
+
+    glNewList(calibvelodynedisplaylist,GL_COMPILE);
+
+    glDrawArrays(GL_POINTS,0,n);
+
+    glEndList();
+
+    glDisableClientState(GL_VERTEX_ARRAY);
+    glDisableClientState(GL_COLOR_ARRAY);
+
+    calibvelodyneviewer->update();
+
     return 1;
 }
 
-//=========================================================================
+double calibrationCameraVelodyneChessboardObjectiveFunc(const std::vector<double> &x, std::vector<double> &grad, void *data)
+{
+    Eigen::Matrix3d rotation;
+    rotation=Eigen::AngleAxisd(x[2],Eigen::Vector3d::UnitZ())
+            *Eigen::AngleAxisd(x[1],Eigen::Vector3d::UnitY())
+            *Eigen::AngleAxisd(x[0],Eigen::Vector3d::UnitX());
+    cv::Mat rmat(3,3,CV_64F);
+    rmat.at<double>(0,0)=rotation(0,0);rmat.at<double>(0,1)=rotation(0,1);rmat.at<double>(0,2)=rotation(0,2);
+    rmat.at<double>(1,0)=rotation(1,0);rmat.at<double>(1,1)=rotation(1,1);rmat.at<double>(1,2)=rotation(1,2);
+    rmat.at<double>(2,0)=rotation(2,0);rmat.at<double>(2,1)=rotation(2,1);rmat.at<double>(2,2)=rotation(2,2);
 
+    cv::Mat vmat(1,3,CV_64F);
+    vmat.at<double>(0)=x[3];vmat.at<double>(1)=x[4];vmat.at<double>(2)=x[5];
+
+    CalibrateCameraVelodyneChessboardBase::CameraVelodyneCalibrationData * calibdata=reinterpret_cast<CalibrateCameraVelodyneChessboardBase::CameraVelodyneCalibrationData *>(data);
+
+    int chessboardnum=calibdata->velodynepoints.size();
+
+    cv::Mat normals=calibdata->chessboardnormals*rmat.t();
+    cv::Mat points=calibdata->chessboardpoints*rmat.t()+cv::Mat::ones(chessboardnum,1,CV_64F)*vmat;
+
+    double error=0;
+    int i,n=chessboardnum;
+    for(i=0;i<n;i++)
+    {
+        int pointsnum=calibdata->velodynepoints[i].rows;
+        cv::Mat duppoints=cv::Mat::ones(pointsnum,1,CV_64F)*points.row(i);
+        cv::Mat dists=(calibdata->velodynepoints[i]-duppoints)*(normals.row(i).t());
+        error+=cv::norm(dists);
+    }
+    qDebug()<<error;
+    return error;
+}
+
+bool CalibrateCameraVelodyneChessboardBase::calibrateSensor()
+{
+    if(!CalibrateCameraChessboardBase::calibrateSensor())
+    {
+        return 0;
+    }
+    double PI=3.141592654;
+
+    QVector<double> lb(6),ub(6);
+    lb[0]=-PI;lb[1]=-PI;lb[2]=-PI;lb[3]=-50;lb[4]=-50;lb[5]=-50;
+    ub[0]=PI;ub[1]=PI;ub[2]=PI;ub[3]=50;ub[4]=50;ub[5]=50;
+
+    CameraVelodyneCalibrationData calibrationdata;
+    cv::Mat normal=cv::Mat(1,3,CV_64F);
+    normal.at<double>(0)=0;normal.at<double>(1)=0;normal.at<double>(2)=1;
+    int i,n=calibvelodynes.size();
+    calibrationdata.chessboardnormals=cv::Mat(n,3,CV_64F);
+    calibrationdata.chessboardpoints=cv::Mat(n,3,CV_64F);
+    calibrationdata.velodynepoints.resize(n);
+    for(i=0;i<n;i++)
+    {
+        calibrationdata.chessboardnormals.row(i)=normal*chessboardposes[i](cv::Rect(0,0,3,3)).t();
+        calibrationdata.chessboardpoints.row(i)=chessboardposes[i](cv::Rect(0,3,3,1)).t();
+        if(calibvelodynes[i]==NULL)
+        {
+            return 0;
+        }
+        int j,m=calibvelodynes[i]->size();
+        if(m==0)
+        {
+            return 0;
+        }
+        calibrationdata.velodynepoints[i]=cv::Mat(m,3,CV_64F);
+        for(j=0;j<m;j++)
+        {
+            calibrationdata.velodynepoints[i].at<double>(j,0)=double(calibvelodynes[i]->points[j].x);
+            calibrationdata.velodynepoints[i].at<double>(j,1)=double(calibvelodynes[i]->points[j].y);
+            calibrationdata.velodynepoints[i].at<double>(j,2)=double(calibvelodynes[i]->points[j].z);
+        }
+    }
+
+    std::vector<double> x(6);
+    x[0]=atan2(cameraextrinsicmat.at<double>(2,1),cameraextrinsicmat.at<double>(2,2));
+    x[1]=atan2(-cameraextrinsicmat.at<double>(2,0),sqrt(cameraextrinsicmat.at<double>(2,1)*cameraextrinsicmat.at<double>(2,1)+cameraextrinsicmat.at<double>(2,2)*cameraextrinsicmat.at<double>(2,2)));
+    x[2]=atan2(cameraextrinsicmat.at<double>(1,0),cameraextrinsicmat.at<double>(0,0));
+    x[3]=cameraextrinsicmat.at<double>(0,3);
+    x[4]=cameraextrinsicmat.at<double>(1,3);
+    x[5]=cameraextrinsicmat.at<double>(2,3);
+
+    double minf;
+
+    nlopt::opt globalopt(nlopt::GN_ISRES,6);
+    globalopt.set_lower_bounds(lb.toStdVector());
+    globalopt.set_upper_bounds(ub.toStdVector());
+    globalopt.set_min_objective(calibrationCameraVelodyneChessboardObjectiveFunc,(void *)&calibrationdata);
+    globalopt.set_xtol_rel(1e-4);
+    nlopt::result globalresult = globalopt.optimize(x, minf);
+
+    if(globalresult!=nlopt::SUCCESS)
+    {
+        x[0]=atan2(cameraextrinsicmat.at<double>(2,1),cameraextrinsicmat.at<double>(2,2));
+        x[1]=atan2(-cameraextrinsicmat.at<double>(2,0),sqrt(cameraextrinsicmat.at<double>(2,1)*cameraextrinsicmat.at<double>(2,1)+cameraextrinsicmat.at<double>(2,2)*cameraextrinsicmat.at<double>(2,2)));
+        x[2]=atan2(cameraextrinsicmat.at<double>(1,0),cameraextrinsicmat.at<double>(0,0));
+        x[3]=cameraextrinsicmat.at<double>(0,3);
+        x[4]=cameraextrinsicmat.at<double>(1,3);
+        x[5]=cameraextrinsicmat.at<double>(2,3);
+    }
+
+    nlopt::opt localopt(nlopt::LN_COBYLA,6);
+    localopt.set_lower_bounds(lb.toStdVector());
+    localopt.set_upper_bounds(ub.toStdVector());
+    localopt.set_min_objective(calibrationCameraVelodyneChessboardObjectiveFunc,(void *)&calibrationdata);
+    localopt.set_xtol_rel(1e-6);
+    nlopt::result localresult = localopt.optimize(x, minf);
+
+    if(localresult!=nlopt::SUCCESS)
+    {
+        return 0;
+    }
+
+    Eigen::Matrix3d rotation;
+    rotation=Eigen::AngleAxisd(x[2],Eigen::Vector3d::UnitZ())
+            *Eigen::AngleAxisd(x[1],Eigen::Vector3d::UnitY())
+            *Eigen::AngleAxisd(x[0],Eigen::Vector3d::UnitX());
+    cameraextrinsicmat.at<double>(0,0)=rotation(0,0);cameraextrinsicmat.at<double>(0,1)=rotation(0,1);cameraextrinsicmat.at<double>(0,2)=rotation(0,2);
+    cameraextrinsicmat.at<double>(1,0)=rotation(1,0);cameraextrinsicmat.at<double>(1,1)=rotation(1,1);cameraextrinsicmat.at<double>(1,2)=rotation(1,2);
+    cameraextrinsicmat.at<double>(2,0)=rotation(2,0);cameraextrinsicmat.at<double>(2,1)=rotation(2,1);cameraextrinsicmat.at<double>(2,2)=rotation(2,2);
+    cameraextrinsicmat.at<double>(0,3)=x[3];cameraextrinsicmat.at<double>(1,3)=x[4];cameraextrinsicmat.at<double>(2,3)=x[5];
+    setResultShow(cameraextrinsicmat,cameraextrinsicshow);
+    return 1;
+}
+
+CalibrateCameraVelodyneChessboardROS::CalibrateCameraVelodyneChessboardROS(QString cameraTopic, u_int32_t cameraQueueSize, int cameraInterval, QString velodyneTopic, u_int32_t velodyneQueueSize, int velodyneInterval, float maxRange, cv::Size2f patternSize, cv::Size2i patternNum, QWidget *parent)
+    : CalibrateCameraVelodyneChessboardBase(maxRange,patternSize,patternNum,parent)
+{
+    camerasub=new ROSSub<sensor_msgs::ImageConstPtr>(cameraTopic,cameraQueueSize,cameraInterval);
+    connect(camerasub,SIGNAL(receiveMessageSignal()),this,SLOT(refreshImageSlot()));
+    velodynesub=new ROSSub<sensor_msgs::PointCloud2ConstPtr>(velodyneTopic,velodyneQueueSize,velodyneInterval);
+    connect(velodynesub,SIGNAL(receiveMessageSignal()),this,SLOT(refreshVelodyneSlot()));
+    camerasub->startReceiveSlot();
+    velodynesub->startReceiveSlot();
+}
+
+
+CalibrateCameraVelodyneChessboardROS::~CalibrateCameraVelodyneChessboardROS()
+{
+    delete camerasub;
+    delete velodynesub;
+}
+
+bool CalibrateCameraVelodyneChessboardROS::refreshImage()
+{
+    sensor_msgs::ImageConstPtr msg=camerasub->getMessage();
+    if(msg==NULL)
+    {
+        return 0;
+    }
+    cameratimestamp=QTime::fromMSecsSinceStartOfDay((msg->header.stamp.sec%(24*60*60))*1000+msg->header.stamp.nsec/1000000);
+    void * data=(void *)(msg->data.data());
+    if(QString::fromStdString(msg->encoding)=="rgb8")
+    {
+        cv::Mat tmpimage=cv::Mat(msg->height,msg->width,CV_8UC3,data);
+        cv::cvtColor(tmpimage,calibimage,CV_BGR2RGB);
+    }
+    else if(QString::fromStdString(msg->encoding)=="mono8")
+    {
+        calibimage=cv::Mat(msg->height,msg->width,CV_8UC1,data);
+    }
+    else
+    {
+        return 0;
+    }
+    return CalibrateCameraBase::refreshImage();
+}
+
+bool CalibrateCameraVelodyneChessboardROS::refreshVelodyne()
+{
+    sensor_msgs::PointCloud2ConstPtr msg=velodynesub->getMessage();
+    if(msg==NULL)
+    {
+        return 0;
+    }
+    velodynetimestamp=QTime::fromMSecsSinceStartOfDay((msg->header.stamp.sec%(24*60*60))*1000+msg->header.stamp.nsec/1000000);
+    calibvelodyne=msg;
+    return CalibrateCameraVelodyneChessboardBase::refreshVelodyne();
+}
+
+bool CalibrateCameraVelodyneChessboardROS::grabCalibData()
+{
+    camerasub->stopReceiveSlot();
+    velodynesub->stopReceiveSlot();
+
+    cv::vector<cv::Point2f> grid2dpoint;
+    bool found=cv::findChessboardCorners(calibimage,patternnum,grid2dpoint);
+    if(!found)
+    {
+        camerasub->startReceiveSlot();
+        velodynesub->stopReceiveSlot();
+        return 0;
+    }
+    calibimages.push_back(calibimage.clone());
+    grid3dpoints.push_back(grid3dpoint);
+    grid2dpoints.push_back(grid2dpoint);
+
+    chessboardposes.push_back(cv::Mat::eye(4,4,CV_64F));
+    QTableWidget * tmpchessboardtable=new QTableWidget;
+    chessboardposeshow->addTab(tmpchessboardtable,QString("Chessboard_%1").arg(calibimages.size()-1));
+
+    cv::Mat tmpimage=calibimages.back();
+    cv::drawChessboardCorners(tmpimage,patternnum,grid2dpoint,1);
+    if(tmpimage.type()==CV_8UC3)
+    {
+        QImage img(tmpimage.data, tmpimage.cols, tmpimage.rows, tmpimage.step, QImage::Format_RGB888);
+        img=img.rgbSwapped();
+        QLabel * tmpcalibimageshow=new QLabel;
+        tmpcalibimageshow->setPixmap(QPixmap::fromImage(img));
+        QScrollArea * scrollarea=new QScrollArea;
+        scrollarea->setWidget(tmpcalibimageshow);
+        calibimagesshow->addTab(scrollarea,QString("Image_%1").arg(calibimages.size()-1));
+        calibimagesshow->setCurrentWidget(scrollarea);
+    }
+    else if(tmpimage.type()==CV_8UC1)
+    {
+        QImage img(tmpimage.data, tmpimage.cols, tmpimage.rows, tmpimage.step, QImage::Format_Indexed8);
+        img.setColorTable(colorTable);
+        QLabel * tmpcalibimageshow=new QLabel;
+        tmpcalibimageshow->setPixmap(QPixmap::fromImage(img));
+        QScrollArea * scrollarea=new QScrollArea;
+        scrollarea->setWidget(tmpcalibimageshow);
+        calibimagesshow->addTab(scrollarea,QString("Image_%1").arg(calibimages.size()-1));
+        calibimagesshow->setCurrentWidget(scrollarea);
+    }
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr tmpptr;
+    calibvelodynes.push_back(tmpptr);
+    QTableWidget * tmpvelodynetable=new QTableWidget;
+    calibvelodynepointstab->addTab(tmpvelodynetable,QString("Velodyne_%1").arg(calibvelodynes.size()-1));
+
+    PlaneExtraction * planeextraction=new PlaneExtraction(calibvelodyne,calibvelodynes.size());
+    calibvelodynesshow->addTab(planeextraction,QString("Velodyne_%1").arg(calibvelodynes.size()-1));
+    calibvelodynesshow->setCurrentWidget(planeextraction);
+    planeextraction->setCameraPose(calibvelodyneviewer->getCameraPose());
+    planeextraction->update();
+    connect(planeextraction,SIGNAL(selectionResultSignal(pcl::PointCloud<pcl::PointXYZI>::Ptr,int)),this,SLOT(selectionResultSlot(pcl::PointCloud<pcl::PointXYZI>::Ptr,int)));
+
+    camerasub->startReceiveSlot();
+    velodynesub->startReceiveSlot();
+    return 1;
+}
