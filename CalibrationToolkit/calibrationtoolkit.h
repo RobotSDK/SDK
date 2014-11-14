@@ -15,6 +15,7 @@
 #include<qdebug.h>
 #include<qsplitter.h>
 #include<qframe.h>
+#include<qmessagebox.h>
 
 #include<opencv2/opencv.hpp>
 
@@ -68,6 +69,7 @@ protected:
     virtual bool saveCalibResult(cv::FileStorage & fs)=0;
 protected:
     void setResultShow(cv::Mat result, QTableWidget * show);
+    QVector<double> convertMatrix2Euler(cv::Mat mat);
 };
 
 class CalibrateCameraBase : public CalibrationToolkitBase
@@ -161,12 +163,15 @@ public:
         cv::Mat chessboardnormals;   //n*3
         cv::Mat chessboardpoints;    //n*3
         cv::vector<cv::Mat> velodynepoints; //n*m*3
+        cv::Mat velodynenormals;
+        cv::Mat rotationresult;
     };
 protected:
     float maxrange;
 
     QTabWidget * calibvelodynetab;
     QTabWidget * calibvelodynepointstab;
+    QTabWidget * calibvelodynenormalstab;
     double calibrationerror;
     QLabel * calibrationerrorshow;
 
@@ -177,10 +182,11 @@ protected:
     GLViewer * calibvelodyneviewer;
     GLuint calibvelodynedisplaylist;
     QVector<pcl::PointCloud<pcl::PointXYZI>::Ptr> calibvelodynes;
+    QVector<cv::Mat> calibvelodynesnormals;
     QTabWidget * calibvelodynesshow;
 public slots:
     void refreshVelodyneSlot();
-    void extractionResultSlot(pcl::PointCloud<pcl::PointXYZI>::Ptr extraction, int id);
+    void extractionResultSlot(pcl::PointCloud<pcl::PointXYZI>::Ptr extraction, cv::Mat normal, int id);
 signals:
     void velodyneRefreshedSignal();
     void velodyneRefreshedErrorSignal();

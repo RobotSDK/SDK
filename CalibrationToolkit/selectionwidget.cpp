@@ -1,10 +1,9 @@
 #include"selectionwidget.h"
 
-PlaneExtractor::PlaneExtractor(sensor_msgs::PointCloud2ConstPtr velodynePoints, int id, int neighborNum, double neighborRadius, double distanceThreshold, QWidget *parent)
+PlaneExtractor::PlaneExtractor(sensor_msgs::PointCloud2ConstPtr velodynePoints, int id, double neighborRadius, double distanceThreshold, QWidget *parent)
     : GLViewer(parent)
 {
     pointsid=id;
-    neighbornum=neighborNum;
     neighborradius=neighborRadius;
     distance=distanceThreshold;
     pointsptr=velodynePoints;
@@ -26,15 +25,6 @@ PlaneExtractor::PlaneExtractor(sensor_msgs::PointCloud2ConstPtr velodynePoints, 
     }
     kdtree.setInputCloud(cloud.makeShared());
 
-    pcl::search::KdTree<pcl::PointXYZI>::Ptr tmptree(new pcl::search::KdTree<pcl::PointXYZI>());
-
-    pcl::NormalEstimationOMP<pcl::PointXYZI,pcl::Normal> ne;
-    ne.setInputCloud(cloud.makeShared());
-    ne.setSearchMethod(tmptree);
-    ne.setKSearch(neighbornum);
-    normals.resize(cloud.size());
-    ne.compute(normals);
-
     this->makeCurrent();
 
     pointsdisplaylist=glGenLists(1);
@@ -49,7 +39,6 @@ PlaneExtractor::PlaneExtractor(sensor_msgs::PointCloud2ConstPtr velodynePoints, 
     glEnableClientState(GL_COLOR_ARRAY);
 
     glVertexPointer(3,GL_FLOAT,sizeof(pcl::PointXYZI),cloud.points.data());
-    //glColorPointer(3,GL_FLOAT,sizeof(pcl::Normal),normals.points.data());
     glColorPointer(3,GL_FLOAT,3*sizeof(float),colors.data());
 
     glNewList(pointsdisplaylist,GL_COMPILE);
@@ -176,12 +165,13 @@ void PlaneExtractor::mousePositionSlot(QMouseEvent * event, CAMERAPARAMETERS * p
             if(!extracted)
             {
                 extractPlane(point,eigenvectors);
+                extracted=1;
             }
             break;
         case Qt::RightButton:
             {
                 pcl::PointCloud<pcl::PointXYZI>::Ptr extraction;
-                emit extractionResultSignal(extraction,pointsid);
+                emit extractionResultSignal(extraction,cv::Mat(1,3,CV_64F),pointsid);
                 this->makeCurrent();
                 glNewList(selecteddisplaylist,GL_COMPILE);
                 glEndList();
@@ -210,7 +200,7 @@ void PlaneExtractor::drawMouse(Eigen::Vector3d point, Eigen::Vector3d norm, Eige
     this->makeCurrent();
     glNewList(mousedisplaylist,GL_COMPILE);
     glBegin(GL_LINES);
-    glColor4d(1.0,1.0,1.0,1.0);
+    glColor4d(0.0,1.0,0.0,1.0);
     glVertex3d(point(0),point(1),point(2));
     Eigen::Vector3d temppoint=point+norm;
     glVertex3d(temppoint(0),temppoint(1),temppoint(2));
@@ -252,52 +242,23 @@ void PlaneExtractor::drawMouse(Eigen::Vector3d point, Eigen::Vector3d norm, Eige
 
 void PlaneExtractor::extractPlane(Eigen::Vector3d seed, Eigen::Matrix3d eigenvectors)
 {
-    std::queue<int> indexqueue;
-    std::vector<int> k_indices(neighbornum);
-    std::vector<float> k_sqr_distances(neighbornum);
-    std::vector<bool> filter(cloud.size());
+    std::vector<int> k_indices;
+    std::vector<float> k_sqr_distances;
     pcl::PointXYZI tmpseed;
     tmpseed.x=float(seed(0));tmpseed.y=float(seed(1));tmpseed.z=float(seed(2));
+    std::vector<int> tmpresult;
     int n=kdtree.radiusSearchT(tmpseed,neighborradius,k_indices,k_sqr_distances);
     int i;
     for(i=0;i<n;i++)
     {
         int index=k_indices[i];
-        if(filter[index]==0)
+        Eigen::Vector3d temppoint(double(cloud[index].x), double(cloud[index].y), double(cloud[index].z));
+        Eigen::Vector3d disvec=temppoint-seed;
+        double tempdistance=fabs(disvec.dot(eigenvectors.col(0)));
+        if(tempdistance<=distance)
         {
-            Eigen::Vector3d temppoint(double(cloud[index].x), double(cloud[index].y), double(cloud[index].z));
-            Eigen::Vector3d disvec=temppoint-seed;
-            double tempdistance=fabs(disvec.dot(eigenvectors.col(0)));
-            if(tempdistance<=distance)
-            {
-                indexqueue.push(index);
-                filter[index]=1;
-            }
+            tmpresult.push_back(index);
         }
-    }
-    std::vector<int> tmpresult;
-    while(!indexqueue.empty())
-    {
-        int index=indexqueue.front();
-        tmpresult.push_back(index);
-        indexqueue.pop();
-//        tmpseed=cloud[index];
-//        n=kdtree.radiusSearchT(tmpseed,neighborradius,k_indices,k_sqr_distances);
-//        for(i=0;i<n;i++)
-//        {
-//            int index=k_indices[i];
-//            if(filter[index]==0)
-//            {
-//                Eigen::Vector3d temppoint(double(cloud[index].x), double(cloud[index].y), double(cloud[index].z));
-//                Eigen::Vector3d disvec=temppoint-seed;
-//                double tempdistance=fabs(disvec.dot(eigenvectors.col(0)));
-//                if(tempdistance<=distance)
-//                {
-//                    indexqueue.push(index);
-//                    filter[index]=1;
-//                }
-//            }
-//        }
     }
     if(tmpresult.size()>0)
     {
@@ -308,12 +269,16 @@ void PlaneExtractor::extractPlane(Eigen::Vector3d seed, Eigen::Matrix3d eigenvec
         {
             extraction->points[i]=cloud.points[tmpresult[i]];
         }
-        emit extractionResultSignal(extraction,pointsid);
+        cv::Mat normal(1,3,CV_64F);
+        normal.at<double>(0)=eigenvectors(0,0);
+        normal.at<double>(1)=eigenvectors(1,0);
+        normal.at<double>(2)=eigenvectors(2,0);
+        emit extractionResultSignal(extraction,normal,pointsid);
 
         this->makeCurrent();
         glNewList(selecteddisplaylist,GL_COMPILE);
         glBegin(GL_POINTS);
-        glColor4d(0.0,1.0,0.0,1.0);
+        glColor4d(1.0,0.0,0.0,1.0);
         for(i=0;i<n;i++)
         {
             glVertex3f(extraction->points[i].x,extraction->points[i].y,extraction->points[i].z);
