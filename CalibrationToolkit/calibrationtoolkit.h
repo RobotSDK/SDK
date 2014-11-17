@@ -38,9 +38,12 @@
 #define CHESSBOARDPOSE "ChessboardPose"
 #define CHESSBOARDIMAGE "ChessboardImage"
 #define CHESSBOARDVIEWNUM "ChessboardViewNUM"
+#define GRID3DPOINTS "Grid3DPoints"
+#define GRID2DPOINTS "Grid2DPoints"
 #define REPROJECTIONERROR "ReprojectionError"
 #define VELODYNEPOINTS "VelodynePoints"
 #define VELODYNENORMALS "VelodyneNormals"
+#define VELODYNEVIEWERPOSE "VelodyneViewerPose"
 #define CALIBRATIONERROR "CalibrationError"
 
 class CalibrationToolkitBase : public QWidget
@@ -72,6 +75,7 @@ protected:
     virtual bool saveCalibResult(cv::FileStorage & fs)=0;
 protected:
     void setResultShow(cv::Mat result, QTableWidget * show);
+    void readResultShow(cv::Mat &result, QTableWidget * show);
     QVector<double> convertMatrix2Euler(cv::Mat mat);
 };
 
@@ -94,9 +98,11 @@ protected:
     QTime cameratimestamp;
     cv::Mat calibimage;
     QLabel * calibimageshow;
-    QVector<QRgb> colorTable;    
+    QVector<QRgb> colorTable;
 protected slots:
     void refreshImageSlot();
+public slots:
+    void refreshParametersSlot();
 signals:
     void imageRefreshedSignal();
     void imageRefreshedErrorSignal();
@@ -175,7 +181,8 @@ protected:
     QTabWidget * calibvelodynetab;
     QTabWidget * calibvelodynepointstab;
     QTabWidget * calibvelodynenormalstab;
-    double calibrationerror;
+    double calibrationrotationalerror;
+    double calibrationtranslationalerror;
     QLabel * calibrationerrorshow;
 
     QSplitter * velodynesplitter;
@@ -190,6 +197,7 @@ protected:
 public slots:
     void refreshVelodyneSlot();
     void extractionResultSlot(pcl::PointCloud<pcl::PointXYZI>::Ptr extraction, cv::Mat normal, int id);
+    void projectVelodynePointsSlot();
 signals:
     void velodyneRefreshedSignal();
     void velodyneRefreshedErrorSignal();
