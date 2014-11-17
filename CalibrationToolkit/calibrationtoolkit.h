@@ -40,6 +40,7 @@
 #define CHESSBOARDVIEWNUM "ChessboardViewNUM"
 #define REPROJECTIONERROR "ReprojectionError"
 #define VELODYNEPOINTS "VelodynePoints"
+#define VELODYNENORMALS "VelodyneNormals"
 #define CALIBRATIONERROR "CalibrationError"
 
 class CalibrationToolkitBase : public QWidget
@@ -183,7 +184,7 @@ protected:
     sensor_msgs::PointCloud2ConstPtr calibvelodyne;
     GLViewer * calibvelodyneviewer;
     GLuint calibvelodynedisplaylist;
-    QVector<pcl::PointCloud<pcl::PointXYZI>::Ptr> calibvelodynes;
+    QVector<pcl::PointCloud<pcl::PointXYZI>::Ptr> calibvelodynespoints;
     QVector<cv::Mat> calibvelodynesnormals;
     QTabWidget * calibvelodynesshow;
 public slots:

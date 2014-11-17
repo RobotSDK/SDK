@@ -220,12 +220,12 @@ CalibrateCameraChessboardBase::CalibrateCameraChessboardBase(cv::Size2f patternS
     patternsize=patternSize;
     patternnum=patternNum;
 
+    int i,j;
+    for(i=0;i<patternnum.height;i++)
     {
         for(j=0;j<patternnum.width;j++)
         {
-            cv::Point3f tmpgrid3dpoint;    int i,j;
-            for(i=0;i<patternnum.height;i++)
-
+            cv::Point3f tmpgrid3dpoint;
             tmpgrid3dpoint.x=i*patternsize.height;
             tmpgrid3dpoint.y=j*patternsize.width;
             tmpgrid3dpoint.z=0;
@@ -510,7 +510,7 @@ void CalibrateCameraVelodyneChessboardBase::refreshVelodyneSlot()
 
 void CalibrateCameraVelodyneChessboardBase::extractionResultSlot(pcl::PointCloud<pcl::PointXYZI>::Ptr extraction, cv::Mat normal, int id)
 {
-    calibvelodynes[id]=extraction;
+    calibvelodynespoints[id]=extraction;
     calibvelodynesnormals[id]=normal;
     QTableWidget * pointstable=(QTableWidget *)(calibvelodynepointstab->widget(id));
     QTableWidget * normalstable=(QTableWidget *)(calibvelodynenormalstab->widget(id));
@@ -699,7 +699,7 @@ bool CalibrateCameraVelodyneChessboardBase::calibrateSensor()
     CameraVelodyneCalibrationData calibrationdata;
     cv::Mat normal=cv::Mat(1,3,CV_64F);
     normal.at<double>(0)=0;normal.at<double>(1)=0;normal.at<double>(2)=1;
-    int i,n=calibvelodynes.size();
+    int i,n=calibvelodynespoints.size();
     calibrationdata.chessboardnormals=cv::Mat(n,3,CV_64F);
     calibrationdata.chessboardpoints=cv::Mat(n,3,CV_64F);
     calibrationdata.velodynepoints.resize(n);
@@ -712,19 +712,19 @@ bool CalibrateCameraVelodyneChessboardBase::calibrateSensor()
         calibrationdata.chessboardpoints.at<double>(i,0)=chessboardposes[i].at<double>(0,3);
         calibrationdata.chessboardpoints.at<double>(i,1)=chessboardposes[i].at<double>(1,3);
         calibrationdata.chessboardpoints.at<double>(i,2)=chessboardposes[i].at<double>(2,3);
-        if(calibvelodynes[i]==NULL)
+        if(calibvelodynespoints[i]==NULL)
         {
             calibrationdata.velodynepoints[i]=cv::Mat(1,1,CV_64F);
             continue;
         }
         flag=1;
-        int j,m=calibvelodynes[i]->size();
+        int j,m=calibvelodynespoints[i]->size();
         calibrationdata.velodynepoints[i]=cv::Mat(m,3,CV_64F);
         for(j=0;j<m;j++)
         {
-            calibrationdata.velodynepoints[i].at<double>(j,0)=double(calibvelodynes[i]->points[j].x);
-            calibrationdata.velodynepoints[i].at<double>(j,1)=double(calibvelodynes[i]->points[j].y);
-            calibrationdata.velodynepoints[i].at<double>(j,2)=double(calibvelodynes[i]->points[j].z);
+            calibrationdata.velodynepoints[i].at<double>(j,0)=double(calibvelodynespoints[i]->points[j].x);
+            calibrationdata.velodynepoints[i].at<double>(j,1)=double(calibvelodynespoints[i]->points[j].y);
+            calibrationdata.velodynepoints[i].at<double>(j,2)=double(calibvelodynespoints[i]->points[j].z);
         }
         calibrationdata.velodynenormals.at<double>(i,0)=calibvelodynesnormals[i].at<double>(0);
         calibrationdata.velodynenormals.at<double>(i,1)=calibvelodynesnormals[i].at<double>(1);
@@ -782,13 +782,43 @@ bool CalibrateCameraVelodyneChessboardBase::loadCalibResult(cv::FileStorage &fs)
     cv::Mat viewnum;
     fs[CHESSBOARDVIEWNUM]>>viewnum;
     int i,n=viewnum.at<u_int16_t>(0);
-    calibvelodynes.clear();
-    calibvelodynesshow->clear();
+    calibvelodynespoints.resize(n);
+    calibvelodynesnormals.resize(n);
+    calibvelodynepointstab->clear();
+    calibvelodynenormalstab->clear();
     for(i=0;i<n;i++)
     {
         cv::Mat tmpmat;
-        fs[QString("%1_%2").arg(VELODYNEPOINTS).arg(i).toStdString()]<<calibvelodynes[i];
 
+        fs[QString("%1_%2").arg(VELODYNEPOINTS).arg(i).toStdString()]>>tmpmat;
+        calibvelodynespoints[i]->points.resize(tmpmat.rows);
+        memcpy(calibvelodynespoints[i]->points.data(),tmpmat.data,tmpmat.rows*sizeof(pcl::PointXYZI));
+
+        fs[QString("%1_%2").arg(VELODYNENORMALS).arg(i).toStdString()]>>calibvelodynesnormals[i];
+
+        QTableWidget * tmpvelodynetable=new QTableWidget;
+        calibvelodynepointstab->addTab(tmpvelodynetable,QString("Velodyne_%1").arg(i));
+        QTableWidget * tmpvelodynenormaltable=new QTableWidget;
+        calibvelodynenormalstab->addTab(tmpvelodynenormaltable,QString("Normal_%1").arg(i));
+
+        QTableWidget * pointstable=(QTableWidget *)(calibvelodynepointstab->widget(i));
+        QTableWidget * normalstable=(QTableWidget *)(calibvelodynenormalstab->widget(i));
+        pointstable->clear();
+        normalstable->clear();
+
+        pointstable->setRowCount(calibvelodynespoints[i]->points.size());
+        pointstable->setColumnCount(4);
+        int i,n=calibvelodynespoints[i]->points.size();
+        for(i=0;i<n;i++)
+        {
+            pointstable->setItem(i,0,new QTableWidgetItem(QString("%1").arg(calibvelodynespoints[i]->points[i].x)));
+            pointstable->setItem(i,1,new QTableWidgetItem(QString("%1").arg(calibvelodynespoints[i]->points[i].y)));
+            pointstable->setItem(i,2,new QTableWidgetItem(QString("%1").arg(calibvelodynespoints[i]->points[i].z)));
+            pointstable->setItem(i,3,new QTableWidgetItem(QString("%1").arg(calibvelodynespoints[i]->points[i].intensity)));
+        }
+        setResultShow(calibvelodynesnormals[i],normalstable);
+        calibvelodynepointstab->setCurrentIndex(i);
+        calibvelodynenormalstab->setCurrentIndex(i);
     }
     return 1;
 }
@@ -797,33 +827,14 @@ bool CalibrateCameraVelodyneChessboardBase::saveCalibResult(cv::FileStorage &fs)
 {
     CalibrateCameraChessboardBase::saveCalibResult(fs);
 
-    int i,n=calibvelodynes.size();
+    int i,n=calibvelodynespoints.size();
     for(i=0;i<n;i++)
     {
-        int pointnum=calibvelodynes[i]->size();
-        cv::Mat tmpmat(pointnum,8,CV_32F,calibvelodynes[i]->points.data());
-        fs>>QString("%1_%2").arg(VELODYNEPOINTS).arg(i).toStdString()>>tmpmat;
-
-        pcl::PointCloud<pcl::PointXYZI>::Ptr tmpptr;
-        calibvelodynes.push_back(tmpptr);
-        QTableWidget * tmpvelodynetable=new QTableWidget;
-        calibvelodynepointstab->addTab(tmpvelodynetable,QString("Velodyne_%1").arg(calibvelodynes.size()-1));
-
-        calibvelodynesnormals.push_back(cv::Mat(1,3,CV_64F));
-        QTableWidget * tmpvelodynenormaltable=new QTableWidget;
-        calibvelodynenormalstab->addTab(tmpvelodynenormaltable,QString("Normal_%1").arg(calibvelodynes.size()-1));
-
-        double xradius=patternsize.height*patternnum.height/2;
-        double yradius=patternsize.width*patternnum.width/2;
-        double radius=xradius<yradius?xradius:yradius;
-        PlaneExtractor * planeextraction=new PlaneExtractor(calibvelodyne,calibvelodynes.size()-1,radius);
-        calibvelodynesshow->addTab(planeextraction,QString("Velodyne_%1").arg(calibvelodynes.size()-1));
-        calibvelodynesshow->setCurrentWidget(planeextraction);
-        planeextraction->setCameraPose(calibvelodyneviewer->getCameraPose());
-        planeextraction->update();
-        connect(planeextraction,SIGNAL(extractionResultSignal(pcl::PointCloud<pcl::PointXYZI>::Ptr,cv::Mat,int)),this,SLOT(extractionResultSlot(pcl::PointCloud<pcl::PointXYZI>::Ptr,cv::Mat,int)));
+        int pointnum=calibvelodynespoints[i]->size();
+        cv::Mat tmpmat(pointnum,8,CV_32F,calibvelodynespoints[i]->points.data());
+        fs<<QString("%1_%2").arg(VELODYNEPOINTS).arg(i).toStdString()<<tmpmat;
+        fs<<QString("%1_%2").arg(VELODYNENORMALS).arg(i).toStdString()<<calibvelodynesnormals[i];
     }
-
     return 1;
 }
 
@@ -897,6 +908,10 @@ bool CalibrateCameraVelodyneChessboardROS::grabCalibData()
         velodynesub->startReceiveSlot();
         return 0;
     }
+    if(calibvelodyne==NULL)
+    {
+        return 0;
+    }
     calibimages.push_back(calibimage.clone());
     grid3dpoints.push_back(grid3dpoint);
     grid2dpoints.push_back(grid2dpoint);
@@ -931,19 +946,19 @@ bool CalibrateCameraVelodyneChessboardROS::grabCalibData()
     }
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr tmpptr;
-    calibvelodynes.push_back(tmpptr);
+    calibvelodynespoints.push_back(tmpptr);
     QTableWidget * tmpvelodynetable=new QTableWidget;
-    calibvelodynepointstab->addTab(tmpvelodynetable,QString("Velodyne_%1").arg(calibvelodynes.size()-1));
+    calibvelodynepointstab->addTab(tmpvelodynetable,QString("Velodyne_%1").arg(calibvelodynespoints.size()-1));
 
     calibvelodynesnormals.push_back(cv::Mat(1,3,CV_64F));
     QTableWidget * tmpvelodynenormaltable=new QTableWidget;
-    calibvelodynenormalstab->addTab(tmpvelodynenormaltable,QString("Normal_%1").arg(calibvelodynes.size()-1));
+    calibvelodynenormalstab->addTab(tmpvelodynenormaltable,QString("Normal_%1").arg(calibvelodynespoints.size()-1));
 
     double xradius=patternsize.height*patternnum.height/2;
     double yradius=patternsize.width*patternnum.width/2;
     double radius=xradius<yradius?xradius:yradius;
-    PlaneExtractor * planeextraction=new PlaneExtractor(calibvelodyne,calibvelodynes.size()-1,radius);
-    calibvelodynesshow->addTab(planeextraction,QString("Velodyne_%1").arg(calibvelodynes.size()-1));
+    PlaneExtractor * planeextraction=new PlaneExtractor(calibvelodyne,calibvelodynespoints.size()-1,radius);
+    calibvelodynesshow->addTab(planeextraction,QString("Velodyne_%1").arg(calibvelodynespoints.size()-1));
     calibvelodynesshow->setCurrentWidget(planeextraction);
     planeextraction->setCameraPose(calibvelodyneviewer->getCameraPose());
     planeextraction->update();
