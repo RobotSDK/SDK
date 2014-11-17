@@ -36,8 +36,10 @@
 #define CAMERAMAT "CameraMat"
 #define DISTCOEFF "DistCoeff"
 #define CHESSBOARDPOSE "ChessboardPose"
+#define CHESSBOARDIMAGE "ChessboardImage"
 #define CHESSBOARDVIEWNUM "ChessboardViewNUM"
 #define REPROJECTIONERROR "ReprojectionError"
+#define VELODYNEPOINTS "VelodynePoints"
 #define CALIBRATIONERROR "CalibrationError"
 
 class CalibrationToolkitBase : public QWidget
@@ -193,6 +195,8 @@ signals:
 protected:
     virtual bool refreshVelodyne();
     bool calibrateSensor();
+    bool loadCalibResult(cv::FileStorage &fs);
+    bool saveCalibResult(cv::FileStorage &fs);
 };
 
 class CalibrateCameraVelodyneChessboardROS : public CalibrateCameraVelodyneChessboardBase
