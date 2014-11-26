@@ -213,17 +213,18 @@ void ROSTFSub::clearTFs()
     tfs.clear();
 }
 
-tf::StampedTransform ROSTFSub::getTF()
+bool ROSTFSub::getTF(tf::StampedTransform & transform)
 {
-    tf::StampedTransform result;
     lock.lockForWrite();
+    bool flag=0;
     if(receiveflag&&!tfs.isEmpty())
     {
-        result=tfs.front();
+        transform=tfs.front();
         tfs.pop_front();
+        flag=1;
     }
     lock.unlock();
-    return result;
+    return flag;
 }
 
 QString ROSTFSub::getDestinationFrame()

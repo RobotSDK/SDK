@@ -233,7 +233,7 @@ protected slots:
 protected:
     void clearTFs();
 public:
-    tf::StampedTransform getTF();
+    bool getTF(tf::StampedTransform & transform);
     QString getDestinationFrame();
     void resetDestinationFrame(QString destinationFrame);
     QString getOriginalFrame();
