@@ -3,7 +3,6 @@
 
 #include<QObject>
 #include<qglobal.h>
-#include<ros/ros.h>
 #include<qstring.h>
 #include<qstringlist.h>
 #include<qqueue.h>
@@ -14,6 +13,10 @@
 #include<qfileinfo.h>
 #include<qthread.h>
 #include<qdebug.h>
+
+#include<ros/ros.h>
+#include<tf/transform_broadcaster.h>
+#include<tf/transform_listener.h>
 
 #ifndef INITROSMASTERURI
 #define INITROSMASTERURI "http://localhost:11311"
@@ -102,11 +105,11 @@ signals:
 public slots:
     void startReceiveSlot();
     void stopReceiveSlot();
+protected slots:
+    void receiveMessageSlot();
 protected:
     void receiveMessage(ros::CallbackQueue::CallOneResult result);
     virtual void clearMessage()=0;
-protected slots:
-    void receiveMessageSlot();
 };
 
 template<class MSGTYPE>
@@ -162,7 +165,7 @@ template<class MSGTYPE>
 MSGTYPE ROSSub<MSGTYPE>::getMessage()
 {
     MSGTYPE msg;
-    lock.lockForRead();
+    lock.lockForWrite();
     if(receiveflag&&!msgs.isEmpty())
     {
         msg=msgs.front();
@@ -186,5 +189,55 @@ void ROSSub<MSGTYPE>::resetTopic(QString Topic, u_int32_t QueueSize)
     sub=nh->subscribe(Topic.toStdString(),QueueSize,&ROSSub<MSGTYPE>::receiveMessageCallback,this);
     lock.unlock();
 }
+
+class ROSTFPub : public ROSInterfaceBase
+{
+    Q_OBJECT
+public:
+    ROSTFPub(QString childFrameID, QString frameID="world", QString NodeName=QString(), QString ROSMasterURI=INITROSMASTERURI, QObject * parent=0);
+protected:
+    QString childframeid;
+    QString frameid;
+    tf::TransformBroadcaster br;
+public:
+    bool sendTF(tf::Transform & transform);
+    QString getChildFrameID();
+    void resetChildFrameID(QString childFrameID);
+    QString getFrameID();
+    void resetFrameID(QString frameID="world");
+};
+
+class ROSTFSub : public ROSInterfaceBase
+{
+    Q_OBJECT
+public:
+    ROSTFSub(QString destinationFrame, QString originalFrame="world", int Interval=10, QString NodeName=QString(), QString ROSMasterURI=INITROSMASTERURI, QObject * parent=0);
+    ~ROSTFSub();
+protected:
+    QString destinationframe;
+    QString originalframe;
+    QTimer timer;
+    bool receiveflag;
+    QReadWriteLock lock;
+    tf::TransformListener listener;
+    QQueue<tf::StampedTransform> tfs;
+signals:
+    void receiveTFSignal();
+    void startReceiveSignal();
+    void stopReceiveSignal();
+public slots:
+    void startReceiveSlot();
+    void stopReceiveSlot();
+protected slots:
+    void receiveTFSlot();
+protected:
+    void clearTFs();
+public:
+    tf::StampedTransform getTF();
+    QString getDestinationFrame();
+    void resetDestinationFrame(QString destinationFrame);
+    QString getOriginalFrame();
+    void resetOriginalFrame(QString orignalFrame="world");
+};
 
 #endif // ROSINTERFACE_H

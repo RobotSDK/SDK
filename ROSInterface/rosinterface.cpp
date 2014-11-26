@@ -73,6 +73,14 @@ void ROSSubBase::stopReceiveSlot()
     lock.unlock();
 }
 
+void ROSSubBase::receiveMessageSlot()
+{
+    if(ros::ok()&&nh->ok())
+    {
+        receiveMessage(queue.callOne(ros::WallDuration(0)));
+    }
+}
+
 void ROSSubBase::receiveMessage(ros::CallbackQueue::CallOneResult result)
 {
     if(receiveflag)
@@ -92,11 +100,152 @@ void ROSSubBase::receiveMessage(ros::CallbackQueue::CallOneResult result)
     return;
 }
 
-void ROSSubBase::receiveMessageSlot()
+ROSTFPub::ROSTFPub(QString childFrameID, QString frameID, QString NodeName, QString ROSMasterURI, QObject *parent)
+    : ROSInterfaceBase(NodeName,ROSMasterURI,parent)
 {
-    if(ros::ok()&&nh->ok())
+    childframeid=childFrameID;
+    frameid=frameID;
+}
+
+bool ROSTFPub::sendTF(tf::Transform &transform)
+{
+    br.sendTransform(tf::StampedTransform(transform,ros::Time::now(),frameid.toStdString(),childframeid.toStdString()));
+    return 1;
+}
+
+QString ROSTFPub::getChildFrameID()
+{
+    return childframeid;
+}
+
+void ROSTFPub::resetChildFrameID(QString childFrameID)
+{
+    childframeid=childFrameID;
+}
+
+QString ROSTFPub::getFrameID()
+{
+    return frameid;
+}
+
+void ROSTFPub::resetFrameID(QString frameID)
+{
+    frameid=frameID;
+}
+
+ROSTFSub::ROSTFSub(QString destinationFrame, QString originalFrame, int Interval, QString NodeName, QString ROSMasterURI, QObject *parent)
+    : ROSInterfaceBase(NodeName,ROSMasterURI,parent)
+{
+    destinationframe=destinationFrame;
+    originalframe=originalFrame;
+    timer.setInterval(Interval);
+    connect(&timer,SIGNAL(timeout()),this,SLOT(receiveTFSlot()));
+    connect(this,SIGNAL(startReceiveSignal()),&timer,SLOT(start()));
+    connect(this,SIGNAL(stopReceiveSignal()),&timer,SLOT(stop()));
+    receiveflag=0;
+    emit startReceiveSignal();
+}
+
+ROSTFSub::~ROSTFSub()
+{
+    receiveflag=0;
+    emit stopReceiveSignal();
+    disconnect(&timer,SIGNAL(timeout()),this,SLOT(receiveTFSlot()));
+    disconnect(this,SIGNAL(startReceiveSignal()),&timer,SLOT(start()));
+    disconnect(this,SIGNAL(stopReceiveSignal()),&timer,SLOT(stop()));
+}
+
+void ROSTFSub::startReceiveSlot()
+{
+    lock.lockForWrite();
+    receiveflag=1;
+    clearTFs();
+    lock.unlock();
+}
+
+void ROSTFSub::stopReceiveSlot()
+{
+    lock.lockForWrite();
+    receiveflag=0;
+    lock.unlock();
+}
+
+void ROSTFSub::receiveTFSlot()
+{
+    if(ros::ok()&&receiveflag)
     {
-        receiveMessage(queue.callOne(ros::WallDuration(0)));
+        lock.lockForWrite();
+        tf::StampedTransform transform;
+        try
+        {
+            listener.lookupTransform(destinationframe.toStdString(),originalframe.toStdString(),ros::Time(0),transform);
+        }
+        catch(tf::TransformException & ex)
+        {
+            qDebug()<<QString(ex.what());
+            return;
+        }
+        bool flag=0;
+        if(tfs.size()==0)
+        {
+            tfs.push_back(transform);
+            flag=1;
+        }
+        else
+        {
+            tf::StampedTransform tmptf=tfs.back();
+            if(transform.stamp_.sec!=tmptf.stamp_.sec||transform.stamp_.nsec!=tmptf.stamp_.nsec)
+            {
+                tfs.push_back(transform);
+                flag=1;
+            }
+        }
+        lock.unlock();
+        if(flag)
+        {
+            emit receiveTFSignal();
+        }
     }
 }
 
+void ROSTFSub::clearTFs()
+{
+    tfs.clear();
+}
+
+tf::StampedTransform ROSTFSub::getTF()
+{
+    tf::StampedTransform result;
+    lock.lockForWrite();
+    if(receiveflag&&!tfs.isEmpty())
+    {
+        result=tfs.front();
+        tfs.pop_front();
+    }
+    lock.unlock();
+    return result;
+}
+
+QString ROSTFSub::getDestinationFrame()
+{
+    return destinationframe;
+}
+
+void ROSTFSub::resetDestinationFrame(QString destinationFrame)
+{
+    lock.lockForWrite();
+    destinationframe=destinationFrame;
+    lock.unlock();
+}
+
+QString ROSTFSub::getOriginalFrame()
+{
+    return originalframe;
+}
+
+void ROSTFSub::resetOriginalFrame(QString orignalFrame)
+{
+    lock.lockForWrite();
+    originalframe=orignalFrame;
+    lock.unlock();
+}
