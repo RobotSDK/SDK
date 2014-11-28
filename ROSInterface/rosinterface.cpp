@@ -143,12 +143,14 @@ ROSTFSub::ROSTFSub(QString destinationFrame, QString originalFrame, int Interval
     connect(this,SIGNAL(startReceiveSignal()),&timer,SLOT(start()));
     connect(this,SIGNAL(stopReceiveSignal()),&timer,SLOT(stop()));
     receiveflag=0;
+    lastflag=0;
     emit startReceiveSignal();
 }
 
 ROSTFSub::~ROSTFSub()
 {
     receiveflag=0;
+    lastflag=0;
     emit stopReceiveSignal();
     disconnect(&timer,SIGNAL(timeout()),this,SLOT(receiveTFSlot()));
     disconnect(this,SIGNAL(startReceiveSignal()),&timer,SLOT(start()));
@@ -159,6 +161,7 @@ void ROSTFSub::startReceiveSlot()
 {
     lock.lockForWrite();
     receiveflag=1;
+    lastflag=0;
     clearTFs();
     lock.unlock();
 }
@@ -167,6 +170,7 @@ void ROSTFSub::stopReceiveSlot()
 {
     lock.lockForWrite();
     receiveflag=0;
+    lastflag=0;
     lock.unlock();
 }
 
@@ -186,26 +190,14 @@ void ROSTFSub::receiveTFSlot()
             lock.unlock();
             return;
         }
-        bool flag=0;
-        if(tfs.size()==0)
+        if(!lastflag||lasttf.stamp_.sec!=transform.stamp_.sec||lasttf.stamp_.nsec!=transform.stamp_.nsec)
         {
             tfs.push_back(transform);
-            flag=1;
-        }
-        else
-        {
-            tf::StampedTransform tmptf=tfs.back();
-            if(transform.stamp_.sec!=tmptf.stamp_.sec||transform.stamp_.nsec!=tmptf.stamp_.nsec)
-            {
-                tfs.push_back(transform);
-                flag=1;
-            }
-        }
-        lock.unlock();
-        if(flag)
-        {
+            lasttf=transform;
+            lastflag=1;
             emit receiveTFSignal();
         }
+        lock.unlock();
     }
 }
 

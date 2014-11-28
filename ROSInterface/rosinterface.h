@@ -221,6 +221,8 @@ protected:
     QReadWriteLock lock;
     tf::TransformListener listener;
     QQueue<tf::StampedTransform> tfs;
+    tf::StampedTransform lasttf;
+    bool lastflag;
 signals:
     void receiveTFSignal();
     void startReceiveSignal();

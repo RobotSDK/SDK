@@ -379,10 +379,12 @@ void GLViewer::addDisplayLists(GLuint listid, GLuint num)
     int i,n=num;
     for(i=0;i<n;i++)
     {
-        DISPLAYLIST list;
-        list.listid=listid+i;
-        list.show=1;
-        displaylist.push_back(list);
+        DISPLAYLIST templist;
+        templist.listid=listid+i;
+        templist.show=1;
+        templist.transform.setIdentity();
+        templist.scale.setIdentity();
+        displaylist.push_back(templist);
     }
     return;
 }
