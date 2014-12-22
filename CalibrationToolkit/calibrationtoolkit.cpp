@@ -26,6 +26,18 @@ void CalibrationToolkitBase::grabCalibDataSlot()
     }
 }
 
+void CalibrationToolkitBase::removeCalibDataSlot()
+{
+    if(removeCalibData())
+    {
+       emit calibDataRemovedSignal();
+    }
+    else
+    {
+        emit calibDataRemovedErrorSignal();
+    }
+}
+
 void CalibrationToolkitBase::calibrateSensorSlot()
 {
     if(calibrateSensor())
@@ -282,6 +294,35 @@ CalibrateCameraChessboardBase::CalibrateCameraChessboardBase(cv::Size2f patternS
     imagesplitter->addWidget(calibimagesshow);
 }
 
+bool CalibrateCameraChessboardBase::removeCalibData()
+{
+    int id=calibimagesshow->currentIndex();
+
+    if(id<0)
+    {
+        return 0;
+    }
+
+    grid3dpoints.erase(grid3dpoints.begin()+id);
+    grid2dpoints.erase(grid2dpoints.begin()+id);
+    chessboardposes.erase(chessboardposes.begin()+id);
+    QTableWidget * tmpchessboardposeshow=(QTableWidget *)(chessboardposeshow->widget(id));
+    chessboardposeshow->removeTab(id);
+    delete tmpchessboardposeshow;
+    calibimages.erase(calibimages.begin()+id);
+    QLabel * tmpcalibimageshow=(QLabel *)(calibimagesshow->widget(id));
+    calibimagesshow->removeTab(id);
+    delete tmpcalibimageshow;
+    int i,n=calibimagesshow->count();
+    for(i=id;i<n;i++)
+    {
+        chessboardposeshow->setTabText(i,QString("Chessboard_%1").arg(i));
+        calibimagesshow->setTabText(i,QString("Image_%1").arg(i));
+    }
+
+    return 1;
+}
+
 bool CalibrateCameraChessboardBase::calibrateSensor()
 {
     if(calibimages.size()==0)
@@ -469,6 +510,7 @@ bool CalibrateCameraChessboardROS::grabCalibData()
         camerasub->startReceiveSlot();
         return 0;
     }
+    cv::cornerSubPix(calibimage,grid2dpoint,cv::Size(11, 11), cv::Size(-1, -1),cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
     calibimages.push_back(calibimage.clone());
     grid3dpoints.push_back(grid3dpoint);
     grid2dpoints.push_back(grid2dpoint);
@@ -667,6 +709,41 @@ bool CalibrateCameraVelodyneChessboardBase::refreshVelodyne()
     return 1;
 }
 
+bool CalibrateCameraVelodyneChessboardBase::removeCalibData()
+{
+    int id=calibimagesshow->currentIndex();
+    if(id<0)
+    {
+        return 0;
+    }
+    CalibrateCameraChessboardBase::removeCalibData();
+
+    calibvelodynespoints.erase(calibvelodynespoints.begin()+id);
+    calibvelodynesnormals.erase(calibvelodynesnormals.begin()+id);
+
+    QTableWidget * tmpvelodynetable=(QTableWidget *)(calibvelodynepointstab->widget(id));
+    calibvelodynepointstab->removeTab(id);
+    delete tmpvelodynetable;
+
+    QTableWidget * tmpvelodynenormaltable=(QTableWidget *)(calibvelodynenormalstab->widget(id));
+    calibvelodynenormalstab->removeTab(id);
+    delete tmpvelodynenormaltable;
+
+    PlaneExtractor * planeextraction=(PlaneExtractor *)(calibvelodynesshow->widget(id));
+    calibvelodynesshow->removeTab(id);
+    delete planeextraction;
+
+    int i,n=calibimagesshow->count();
+    for(i=id;i<n;i++)
+    {
+        calibvelodynepointstab->setTabText(i,QString("Velodyne_%1").arg(i));
+        calibvelodynenormalstab->setTabText(i,QString("Normal_%1").arg(i));
+        calibvelodynesshow->setTabText(i,QString("Velodyne_%1").arg(i));
+    }
+
+    return 1;
+}
+
 double calibrationCameraVelodyneChessboardObjectiveFunc(const std::vector<double> &x, std::vector<double> &grad, void *data)
 {
     CalibrateCameraVelodyneChessboardBase::CameraVelodyneCalibrationData * calibdata=reinterpret_cast<CalibrateCameraVelodyneChessboardBase::CameraVelodyneCalibrationData *>(data);
@@ -682,7 +759,7 @@ double calibrationCameraVelodyneChessboardObjectiveFunc(const std::vector<double
     rmat.at<double>(2,0)=rotation(2,0);rmat.at<double>(2,1)=rotation(2,1);rmat.at<double>(2,2)=rotation(2,2);
 
     cv::Mat vmat(1,3,CV_64F);
-    vmat.at<double>(0)=x[0];vmat.at<double>(1)=x[1];vmat.at<double>(2)=x[2];
+    vmat.at<double>(0)=x[3];vmat.at<double>(1)=x[4];vmat.at<double>(2)=x[5];
 
     int chessboardnum=calibdata->velodynepoints.size();
 
@@ -708,7 +785,7 @@ double calibrationCameraVelodyneChessboardObjectiveFunc(const std::vector<double
         error+=delta;
     }
     error/=count;
-    qDebug()<<error<<x[0]<<x[1]<<x[2];
+    qDebug()<<error<<x[0]<<x[1]<<x[2]<<x[3]<<x[4]<<x[5];
     return error;
 }
 
@@ -862,15 +939,46 @@ bool CalibrateCameraVelodyneChessboardBase::calibrateSensor()
     x[1]=cameraextrinsicmat.at<double>(1,3);
     x[2]=cameraextrinsicmat.at<double>(2,3);
 
-    nlopt::opt localopt(nlopt::LN_COBYLA,3);
-    localopt.set_lower_bounds(lb.toStdVector());
-    localopt.set_upper_bounds(ub.toStdVector());
-    localopt.set_xtol_rel(1e-4);
-    localopt.set_min_objective(calibrationCameraVelodyneChessboardTranslationalObjectiveFunc,(void *)&calibrationdata);
-    localresult = localopt.optimize(x, calibrationtranslationalerror);
+    {
+        nlopt::opt localopt(nlopt::LN_COBYLA,3);
+        localopt.set_lower_bounds(lb.toStdVector());
+        localopt.set_upper_bounds(ub.toStdVector());
+        localopt.set_xtol_rel(1e-4);
+        localopt.set_min_objective(calibrationCameraVelodyneChessboardTranslationalObjectiveFunc,(void *)&calibrationdata);
+        localresult = localopt.optimize(x,calibrationtranslationalerror);
+    }
 
     cameraextrinsicmat.at<double>(0,3)=x[0];cameraextrinsicmat.at<double>(1,3)=x[1];cameraextrinsicmat.at<double>(2,3)=x[2];
     qDebug()<<x[0]<<x[1]<<x[2];
+
+    lb.resize(6);ub.resize(6);
+    std::vector<double> xx(6);
+
+    double PI=3.141592654;
+    lb[0]=-20;lb[1]=-20;lb[2]=-20;lb[3]=-PI;lb[4]=-PI;lb[5]=-PI;
+    ub[0]=20;ub[1]=20;ub[2]=20;ub[3]=PI;ub[4]=PI;ub[5]=PI;
+    xx[0]=euler[0];xx[1]=euler[1];xx[2]=euler[2];
+    xx[3]=x[0];xx[4]=x[1];xx[5]=x[2];
+
+    {
+        nlopt::opt localopt(nlopt::LN_COBYLA,6);
+        localopt.set_lower_bounds(lb.toStdVector());
+        localopt.set_upper_bounds(ub.toStdVector());
+        localopt.set_xtol_rel(1e-4);
+        localopt.set_min_objective(calibrationCameraVelodyneChessboardObjectiveFunc,(void *)&calibrationdata);
+        localresult=localopt.optimize(xx,calibrationtranslationalerror);
+    }
+
+    Eigen::Matrix3d rotation;
+    rotation=Eigen::AngleAxisd(xx[2],Eigen::Vector3d::UnitZ())
+            *Eigen::AngleAxisd(xx[1],Eigen::Vector3d::UnitY())
+            *Eigen::AngleAxisd(xx[0],Eigen::Vector3d::UnitX());
+
+    cameraextrinsicmat.at<double>(0,0)=rotation(0,0);cameraextrinsicmat.at<double>(0,1)=rotation(0,1);cameraextrinsicmat.at<double>(0,2)=rotation(0,2);
+    cameraextrinsicmat.at<double>(1,0)=rotation(1,0);cameraextrinsicmat.at<double>(1,1)=rotation(1,1);cameraextrinsicmat.at<double>(1,2)=rotation(1,2);
+    cameraextrinsicmat.at<double>(2,0)=rotation(2,0);cameraextrinsicmat.at<double>(2,1)=rotation(2,1);cameraextrinsicmat.at<double>(2,2)=rotation(2,2);
+
+    cameraextrinsicmat.at<double>(0,3)=xx[3];cameraextrinsicmat.at<double>(1,3)=xx[4];cameraextrinsicmat.at<double>(2,3)=xx[5];
 
     calibrationerrorshow->setText(QString("%1, %2").arg(calibrationrotationalerror).arg(calibrationtranslationalerror));
     setResultShow(cameraextrinsicmat,cameraextrinsicshow);
