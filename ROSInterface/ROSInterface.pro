@@ -28,4 +28,5 @@ unix {
 
 PROJNAME = ROSInterface
 INSTTYPE = SDK
+
 include(RobotSDK_Main.pri)

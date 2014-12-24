@@ -55,8 +55,8 @@ bool DataSync<DataType1,DataType2>::getSyncData(DataType1 & data1, DataType2 & d
     int delta=0;
     while(i<n&&j<m)
     {
-        QTime stamp1=timestamp1.front();
-        QTime stamp2=timestamp2.front();
+        QTime stamp1=timestamp1[i];
+        QTime stamp2=timestamp2[j];
         int tmpdelta=stamp1.msecsTo(stamp2);
         if(tmpdelta==0)
         {
@@ -73,7 +73,7 @@ bool DataSync<DataType1,DataType2>::getSyncData(DataType1 & data1, DataType2 & d
             if(delta==0)
             {
                 delta=tmpdelta;
-                if(tmpdelta>0)
+                if(delta>0)
                 {
                     i++;
                 }
@@ -87,7 +87,7 @@ bool DataSync<DataType1,DataType2>::getSyncData(DataType1 & data1, DataType2 & d
                 if(abs(tmpdelta)<abs(delta))
                 {
                     delta=tmpdelta;
-                    if(tmpdelta>0)
+                    if(delta>0)
                     {
                         i++;
                     }
@@ -114,13 +114,17 @@ bool DataSync<DataType1,DataType2>::getSyncData(DataType1 & data1, DataType2 & d
     if(i==n)
     {
         buffer1.erase(buffer1.begin(),buffer1.begin()+i-1);
+        timestamp1.erase(timestamp1.begin(),timestamp1.begin()+i-1);
         buffer2.erase(buffer2.begin(),buffer2.begin()+j);
+        timestamp2.erase(timestamp2.begin(),timestamp2.begin()+j);
         return 0;
     }
     if(j==m)
     {
         buffer1.erase(buffer1.begin(),buffer1.begin()+i);
+        timestamp1.erase(timestamp1.begin(),timestamp1.begin()+i);
         buffer2.erase(buffer2.begin(),buffer2.begin()+j-1);
+        timestamp2.erase(timestamp2.begin(),timestamp2.begin()+j-1);
         return 0;
     }
     data1=buffer1[i];
