@@ -489,6 +489,11 @@ bool CalibrateCameraChessboardROS::refreshImage()
         cv::Mat tmpimage=cv::Mat(msg->height,msg->width,CV_8UC3,data);
         cv::cvtColor(tmpimage,calibimage,CV_BGR2RGB);
     }
+    else if(QString::fromStdString(msg->encoding)=="bgr8")
+    {
+        cv::Mat tmpimage=cv::Mat(msg->height,msg->width,CV_8UC3,data);
+        calibimage=tmpimage.clone();
+    }
     else if(QString::fromStdString(msg->encoding)=="mono8")
     {
         calibimage=cv::Mat(msg->height,msg->width,CV_8UC1,data);
@@ -1122,6 +1127,11 @@ bool CalibrateCameraVelodyneChessboardROS::refreshImage()
     {
         cv::Mat tmpimage=cv::Mat(msg->height,msg->width,CV_8UC3,data);
         cv::cvtColor(tmpimage,calibimage,CV_BGR2RGB);
+    }
+    else if(QString::fromStdString(msg->encoding)=="bgr8")
+    {
+        cv::Mat tmpimage=cv::Mat(msg->height,msg->width,CV_8UC3,data);
+        calibimage=tmpimage.clone();
     }
     else if(QString::fromStdString(msg->encoding)=="mono8")
     {
