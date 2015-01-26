@@ -22,7 +22,7 @@ protected:
     static QVector<double> geolb;
     static QVector<double> geoub;
     static void * measuredata;
-    static uint * deltaseconds;
+    static int * deltaseconds;
 public:
     static double posuni;
     static double posder;
@@ -31,63 +31,64 @@ public:
     static double veluni;
     static double velder;
 protected:
-    Eigen::Vector3d position;
-    Eigen::Vector3d orientation;
-    Eigen::Matrix3d rotationmatrix;
-    Eigen::Vector3d velocity;
     nlopt::opt * opt;
     double optscore;
-    QVector<double> mu;
     QVector<double> geosigma;
-    QVector<double> sigma;
     QVector<double> premu;
     QVector<double> presigma;
     bool initflag;
 public:
-    static void setGeometryRange(QVector<double> & geometryLowerBounds, QVector<double> & geometryUpperBounds);
-    static void setMeasureData(void * measureData);
-    static void setDeltaSeconds(uint * deltaSeconds);
-    static void setMotionParams();
+    Eigen::Vector3d position;
+    Eigen::Vector3d orientation;
+    Eigen::Matrix3d rotationmatrix;
+    Eigen::Vector3d velocity;
+    QVector<double> mu;
+    QVector<double> sigma;
 public:
-    ParticleDataBase(Eigen::Vector3d & initialPosition, Eigen::Vector3d & initialOrientation, Eigen::Vector3d & initialVelocity, QVector<double> & initialGeometry);
+    static void setGeometryRange(QVector<double> & geometryLowerBounds, QVector<double> & geometryUpperBounds);
+    static void linkMeasureData(void * measureData);
+    static void linkDeltaSeconds(int * deltaSeconds);
+public:
+    ParticleDataBase();
     virtual ~ParticleDataBase();
 protected:
     static double geometryEvaluationFunc(const std::vector<double> & G, std::vector<double> & grad, void * particleDataBase);
-    virtual double geometryEvaluation(const QVector<double> & G)=0;
+    virtual double geometryEvaluation(const QVector<double> & G);
 protected:
     void calculateRotationMatrix();
 protected:
-    void motionUpdate();
+    virtual void motionUpdate();
     void estimateGeometryExpectation();
     void estimateGeometryDerivation();
     double calculateWeight();
 public:
+    void initialParticle(ParticleDataBase * particleData);
     double updateParticle();
-public:
-    Eigen::Vector3d getPosition();
-    Eigen::Vector3d getOrientation();
-    Eigen::Vector3d getVelocity();
-    QVector<double> getGeometry();
 };
 
-#define ModeBasedTrackingClass(ParticleDataType) \
-class ModelBasedTracking_##ParticleDataType : \
-        public mrpt::bayes::CParticleFilterData<ParticleDataType>, \
-        public mrpt::bayes::CParticleFilterDataImpl<ModelBasedTracking,mrpt::bayes::CParticleFilterData<ParticleDataType>::CParticleList>{ \
-protected: \
-    void prediction_and_update_pfStandardProposal(const obs::CActionCollection *action,const obs::CSensoryFrame *observation,const CParticleFilter::TParticleFilterOptions &PF_options) \
-    {size_t i,n=m_particles.size();for(i=0;i<n;i++){m_particles[i].log_w=m_particles[i].d->updateParticle();}} \
-public: \
-    void setParticleNumber(size_t particleNumber) \
-    {clearParticles();m_particles.resize(particleNumber);} \
-    void initializeParticles(Eigen::Vector3d & initialPosition, Eigen::Vector3d & initialOrientation, Eigen::Vector3d & initialVelocity, QVector<double> & initialGeometry) \
-    {int i,n=m_particles.size();for(i=0;i<n;i++){m_particles[i].d=new ParticleDataType(initialPosition,initialOrientation,initialVelocity,priorGeometry);m_particles[i].log_w=0;}} \
-    void estimateParticles(Eigen::Vector3d & estimatePosition, Eigen::Vector3d & estimateOrientation, Eigen::Vector3d & estimateVelocity, QVector<double> & estimateGeometry) \
-    {estimatePosition=Eigen::Vector3d::Zero();estimateOrientation=Eigen::Vector3d::Zero();estimateVelocity=Eigen::Vector3d::Zero();estimateGeometry.fill(0,geodim);double sum=0; \
-    int i,n=m_particles.size();for(i=0;i<n;i++){double weight=exp(m_particles[i].log_w);estimatePosition+=weight*m_particles[i].d->getPosition();estimateOrientation+=weight*m_particles[i].d->getOrientation();estimateVelocity+=weight*m_particles[i].d->getVelocity(); \
-    int j;QVector<double> tmpgeometry=m_particles[i].d->getGeometry();for(j=0;j<geodim;j++){estimateGeometry[j]+=weight*tmpgeometry[j];}sum+=weight;}assert(sum>0); \
-    for(i=0;i<n;i++){estimatePosition/=sum;estimateOrientation/=sum;estimateVelocity/=sum;int j;for(j=0;j<geodim;j++){estimateGeometry[j]/=sum;}}}};
-
-#define ModelBasedTracking(ParticleDataType) ModelBasedTracking_##ParticleDataType
+class ModelBasedTracking :
+        public mrpt::bayes::CParticleFilterData<ParticleDataBase>,
+        public mrpt::bayes::CParticleFilterDataImpl<ModelBasedTracking,mrpt::bayes::CParticleFilterData<ParticleDataBase>::CParticleList>
+{
+protected:
+    void prediction_and_update_pfStandardProposal(
+            const mrpt::obs::CActionCollection *action,
+            const mrpt::obs::CSensoryFrame *observation,
+            const mrpt::bayes::CParticleFilter::TParticleFilterOptions &PF_options);
+public:
+    void setParticleNumber(size_t particleNumber);
+    template<class ParticleDataType>
+    void initializeParticles(ParticleDataType * particleInitialData)
+    {
+        int i,n=m_particles.size();
+        for(i=0;i<n;i++)
+        {
+            m_particles[i].d=new ParticleDataType;
+            m_particles[i].d->initialParticle(particleInitialData);
+            m_particles[i].log_w=0;
+        }
+    }
+    void estimateParticles(ParticleDataBase * particleEstimateData);
+};
 
 #endif // MODELBASEDTRACKING_H
