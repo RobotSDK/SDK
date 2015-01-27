@@ -22,7 +22,7 @@ protected:
     static QVector<double> geolb;
     static QVector<double> geoub;
     static void * measuredata;
-    static int * deltaseconds;
+    static int * deltamsecs;
 public:
     static double posuni;
     static double posder;
@@ -47,7 +47,7 @@ public:
 public:
     static void setGeometryRange(QVector<double> & geometryLowerBounds, QVector<double> & geometryUpperBounds);
     static void linkMeasureData(void * measureData);
-    static void linkDeltaSeconds(int * deltaSeconds);
+    static void linkDeltaSeconds(int * deltaMsecs);
 public:
     ParticleDataBase();
     virtual ~ParticleDataBase();

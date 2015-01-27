@@ -6,7 +6,7 @@ int ParticleDataBase::geodim=0;
 QVector<double> ParticleDataBase::geolb(0);
 QVector<double> ParticleDataBase::geoub(0);
 void * ParticleDataBase::measuredata=NULL;
-int * ParticleDataBase::deltaseconds=NULL;
+int * ParticleDataBase::deltamsecs=NULL;
 
 double ParticleDataBase::posuni=1;
 double ParticleDataBase::posder=1;
@@ -29,10 +29,10 @@ void ParticleDataBase::linkMeasureData(void *measureData)
     measuredata=measureData;
 }
 
-void ParticleDataBase::linkDeltaSeconds(int *deltaSeconds)
+void ParticleDataBase::linkDeltaSeconds(int *deltaMsecs)
 {
-    assert (deltaSeconds!=NULL);
-    deltaseconds=deltaSeconds;
+    assert (deltaMsecs!=NULL);
+    deltamsecs=deltaMsecs;
 }
 
 ParticleDataBase::ParticleDataBase()
@@ -88,9 +88,13 @@ void ParticleDataBase::calculateRotationMatrix()
 
 void ParticleDataBase::motionUpdate()
 {
-    assert(deltaseconds!=NULL);
+    assert(deltamsecs!=NULL);
+    if(*deltamsecs<=0)
+    {
+        return;
+    }
     calculateRotationMatrix();
-    position=position+rotationmatrix*((*deltaseconds)*velocity);
+    position=position+rotationmatrix*((*deltamsecs)/1000.0*velocity);
     int i;
     for(i=0;i<3;i++)
     {

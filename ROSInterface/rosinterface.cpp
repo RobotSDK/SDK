@@ -188,7 +188,7 @@ void ROSTFSub::receiveTFSlot()
         }
         catch(tf::TransformException & ex)
         {
-            qDebug()<<QString(ex.what());
+            //qDebug()<<QString(ex.what());
             lock.unlock();
             return;
         }
