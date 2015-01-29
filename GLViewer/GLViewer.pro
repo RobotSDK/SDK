@@ -7,4 +7,5 @@ unix{
 
 PROJNAME = GLViewer
 INSTTYPE = SDK
+
 include(RobotSDK_Main.pri)

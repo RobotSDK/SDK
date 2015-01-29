@@ -37,14 +37,15 @@ ROSInterfaceBase::~ROSInterfaceBase()
     }
 }
 
-ROSSubBase::ROSSubBase(int Interval, QString NodeName, QString ROSMasterURi, QObject *parent)
+ROSSubBase::ROSSubBase(int QueryInterval, QString NodeName, QString ROSMasterURi, QObject *parent)
     : ROSInterfaceBase(NodeName,ROSMasterURi,parent)
 {
     nh->setCallbackQueue(&queue);
-    timer.setInterval(Interval);
+    timer.setInterval(QueryInterval);
     connect(&timer,SIGNAL(timeout()),this,SLOT(receiveMessageSlot()));
     connect(this,SIGNAL(startReceiveSignal()),&timer,SLOT(start()));
     connect(this,SIGNAL(stopReceiveSignal()),&timer,SLOT(stop()));
+    connect(this,SIGNAL(resetQueryIntervalSignal(int)),&timer,SLOT(start(int)));
     receiveflag=0;
     emit startReceiveSignal();
 }
@@ -133,15 +134,16 @@ void ROSTFPub::resetFrameID(QString frameID)
     frameid=frameID;
 }
 
-ROSTFSub::ROSTFSub(QString destinationFrame, QString originalFrame, int Interval, QString NodeName, QString ROSMasterURI, QObject *parent)
+ROSTFSub::ROSTFSub(QString destinationFrame, QString originalFrame, int QueryInterval, QString NodeName, QString ROSMasterURI, QObject *parent)
     : ROSInterfaceBase(NodeName,ROSMasterURI,parent)
 {
     destinationframe=destinationFrame;
     originalframe=originalFrame;
-    timer.setInterval(Interval);
+    timer.setInterval(QueryInterval);
     connect(&timer,SIGNAL(timeout()),this,SLOT(receiveTFSlot()));
     connect(this,SIGNAL(startReceiveSignal()),&timer,SLOT(start()));
     connect(this,SIGNAL(stopReceiveSignal()),&timer,SLOT(stop()));
+    connect(this,SIGNAL(resetQueryIntervalSignal(int)),&timer,SLOT(start(int)));
     receiveflag=0;
     lastflag=0;
     emit startReceiveSignal();
@@ -186,7 +188,7 @@ void ROSTFSub::receiveTFSlot()
         }
         catch(tf::TransformException & ex)
         {
-            qDebug()<<QString(ex.what());
+            //qDebug()<<QString(ex.what());
             lock.unlock();
             return;
         }
@@ -242,4 +244,9 @@ void ROSTFSub::resetOriginalFrame(QString orignalFrame)
     lock.lockForWrite();
     originalframe=orignalFrame;
     lock.unlock();
+}
+
+void ROSTFSub::resetQueryInterval(int QueryInterval)
+{
+    emit resetQueryIntervalSignal(QueryInterval);
 }

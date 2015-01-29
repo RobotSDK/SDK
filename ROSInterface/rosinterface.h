@@ -91,7 +91,7 @@ class ROSSubBase : public ROSInterfaceBase
 {
     Q_OBJECT
 public:
-    ROSSubBase(int Interval, QString NodeName, QString ROSMasterURi, QObject * parent);
+    ROSSubBase(int QueryInterval, QString NodeName, QString ROSMasterURi, QObject * parent);
     ~ROSSubBase();
 protected:
     ros::CallbackQueue queue;
@@ -102,6 +102,7 @@ signals:
     void receiveMessageSignal();
     void startReceiveSignal();
     void stopReceiveSignal();
+    void resetQueryIntervalSignal(int QueryInterval);
 public slots:
     void startReceiveSlot();
     void stopReceiveSlot();
@@ -116,7 +117,7 @@ template<class MSGTYPE>
 class ROSSub : public ROSSubBase
 {
 public:
-    ROSSub(QString Topic, u_int32_t QueueSize, int Interval, QString NodeName=QString(), QString ROSMasterURi=INITROSMASTERURI, QObject * parent=0);
+    ROSSub(QString Topic, u_int32_t QueueSize, int QueryInterval, QString NodeName=QString(), QString ROSMasterURi=INITROSMASTERURI, QObject * parent=0);
     ~ROSSub();
 public:
     void receiveMessageCallback(const MSGTYPE & msg);
@@ -129,11 +130,12 @@ public:
     MSGTYPE getMessage();
     QString getTopic();
     void resetTopic(QString Topic, u_int32_t QueueSize);
+    void resetQueryInterval(int QueryInterval);
 };
 
 template<class MSGTYPE>
-ROSSub<MSGTYPE>::ROSSub(QString Topic, u_int32_t QueueSize, int Interval, QString NodeName, QString ROSMasterURi, QObject *parent)
-    : ROSSubBase(Interval,NodeName,ROSMasterURi,parent)
+ROSSub<MSGTYPE>::ROSSub(QString Topic, u_int32_t QueueSize, int QueryInterval, QString NodeName, QString ROSMasterURi, QObject *parent)
+    : ROSSubBase(QueryInterval,NodeName,ROSMasterURi,parent)
 {
     sub=nh->subscribe(Topic.toStdString(),QueueSize,&ROSSub<MSGTYPE>::receiveMessageCallback,this);
 }
@@ -190,6 +192,12 @@ void ROSSub<MSGTYPE>::resetTopic(QString Topic, u_int32_t QueueSize)
     lock.unlock();
 }
 
+template<class MSGTYPE>
+void ROSSub<MSGTYPE>::resetQueryInterval(int QueryInterval)
+{
+    emit resetQueryIntervalSignal(QueryInterval);
+}
+
 class ROSTFPub : public ROSInterfaceBase
 {
     Q_OBJECT
@@ -211,7 +219,7 @@ class ROSTFSub : public ROSInterfaceBase
 {
     Q_OBJECT
 public:
-    ROSTFSub(QString destinationFrame, QString originalFrame="world", int Interval=10, QString NodeName=QString(), QString ROSMasterURI=INITROSMASTERURI, QObject * parent=0);
+    ROSTFSub(QString destinationFrame, QString originalFrame="world", int QueryInterval=10, QString NodeName=QString(), QString ROSMasterURI=INITROSMASTERURI, QObject * parent=0);
     ~ROSTFSub();
 protected:
     QString destinationframe;
@@ -227,6 +235,7 @@ signals:
     void receiveTFSignal();
     void startReceiveSignal();
     void stopReceiveSignal();
+    void resetQueryIntervalSignal(int QueryInterval);
 public slots:
     void startReceiveSlot();
     void stopReceiveSlot();
@@ -240,6 +249,7 @@ public:
     void resetDestinationFrame(QString destinationFrame);
     QString getOriginalFrame();
     void resetOriginalFrame(QString orignalFrame="world");
+    void resetQueryInterval(int QueryInterval);
 };
 
 #endif // ROSINTERFACE_H
