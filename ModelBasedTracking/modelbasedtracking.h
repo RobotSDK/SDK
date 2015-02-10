@@ -12,8 +12,11 @@
 
 #include<assert.h>
 #include<QVector>
+#include<QDebug>
 
 #define GEOMETRYSAMPLENUM 100
+
+//class ModelBasedTracking;
 
 class ParticleDataBase
 {
@@ -56,7 +59,7 @@ protected:
     virtual double geometryEvaluation(const QVector<double> & G);
 protected:
     void calculateRotationMatrix();
-protected:
+public:
     virtual void motionUpdate();
     void estimateGeometryExpectation();
     void estimateGeometryDerivation();
@@ -64,6 +67,8 @@ protected:
 public:
     void initialParticle(ParticleDataBase * particleData);
     double updateParticle();
+public:
+    friend class ModelBasedTracking;
 };
 
 class ModelBasedTracking :

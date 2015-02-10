@@ -46,7 +46,7 @@ ParticleDataBase::ParticleDataBase()
     assert(opt!=NULL);
     opt->set_lower_bounds(geolb.toStdVector());
     opt->set_upper_bounds(geoub.toStdVector());
-    opt->set_xtol_abs(1e-6);
+    opt->set_xtol_rel(1e-6);
     opt->set_max_objective(geometryEvaluationFunc,(void *)this);
     optscore=0;
 
@@ -131,7 +131,14 @@ void ParticleDataBase::estimateGeometryDerivation()
             sum+=score[j];
             geosigma[i]+=pow(tmpG[i]-mu[i],2.0)*score[j];
         }
-        geosigma[i]/=sum;
+        if(sum>0)
+        {
+            geosigma[i]/=sum;
+        }
+        else
+        {
+            geosigma[i]=1;
+        }
         if(initflag)
         {
             sigma[i]=(sigma[i]*geosigma[i])/(sigma[i]+geosigma[i]);
@@ -145,22 +152,21 @@ void ParticleDataBase::estimateGeometryDerivation()
 
 double ParticleDataBase::calculateWeight()
 {
+    double w=log(optscore);
     if(initflag)
     {
-        double w=log(optscore);
         int i;
         for(i=0;i<geodim;i++)
         {
             w+=log(sqrt(sigma[i]))-log(sqrt(presigma[i]));
             w+=-0.5*pow(mu[i]-premu[i],2.0)/(geosigma[i]+presigma[i]);
-        }
-        return w;
+        }        
     }
     else
     {
         initflag=1;
-        return 0;
     }
+    return w;
 }
 
 void ParticleDataBase::initialParticle(ParticleDataBase * particleData)
@@ -174,8 +180,8 @@ void ParticleDataBase::initialParticle(ParticleDataBase * particleData)
     for(i=0;i<3;i++)
     {
         position(i)=mrpt::random::randomGenerator.drawUniform(position(i)-posuni,position(i)+posuni);
-        orientation(i)=mrpt::random::randomGenerator.drawUniform(orientation(i)-posuni,orientation(i)+oriuni);
-        velocity(i)=mrpt::random::randomGenerator.drawUniform(velocity(i)-posuni,velocity(i)+veluni);
+        orientation(i)=mrpt::random::randomGenerator.drawUniform(orientation(i)-oriuni,orientation(i)+oriuni);
+        velocity(i)=mrpt::random::randomGenerator.drawUniform(velocity(i)-veluni,velocity(i)+veluni);
     }
 
     initflag=0;
@@ -186,7 +192,9 @@ double ParticleDataBase::updateParticle()
     motionUpdate();
     estimateGeometryExpectation();
     estimateGeometryDerivation();
-    return calculateWeight();
+    double weight=calculateWeight();
+    qDebug()<<weight<<optscore<<mu<<sigma<<position(0)<<position(1)<<orientation(2)<<velocity(0)<<velocity(1);
+    return weight;
 }
 
 void ModelBasedTracking::prediction_and_update_pfStandardProposal(
@@ -214,8 +222,6 @@ void ModelBasedTracking::estimateParticles(ParticleDataBase *particleEstimateDat
     particleEstimateData->position=Eigen::Vector3d::Zero();
     particleEstimateData->orientation=Eigen::Vector3d::Zero();
     particleEstimateData->velocity=Eigen::Vector3d::Zero();
-    particleEstimateData->mu.fill(0);
-    particleEstimateData->sigma.fill(0);
     double sum=0;
     int i,n=m_particles.size();
     for(i=0;i<n;i++)
@@ -224,22 +230,13 @@ void ModelBasedTracking::estimateParticles(ParticleDataBase *particleEstimateDat
         particleEstimateData->position+=weight*m_particles[i].d->position;
         particleEstimateData->orientation+=weight*m_particles[i].d->orientation;
         particleEstimateData->velocity+=weight*m_particles[i].d->velocity;
-        int j,m=particleEstimateData->mu.size();
-        for(j=0;j<m;j++)
-        {
-            particleEstimateData->mu[j]+=weight*(m_particles[i].d->mu[j]);
-            particleEstimateData->sigma[j]+=weight*(m_particles[i].d->sigma[j]);
-        }
         sum+=weight;
     }
     assert(sum>0);
     particleEstimateData->position/=sum;
     particleEstimateData->orientation/=sum;
     particleEstimateData->velocity/=sum;
-    int j,m=particleEstimateData->mu.size();
-    for(j=0;j<m;j++)
-    {
-        particleEstimateData->mu[j]/=sum;
-        particleEstimateData->sigma[j]/=sum;
-    }
+
+    particleEstimateData->estimateGeometryExpectation();
+    particleEstimateData->estimateGeometryDerivation();
 }
