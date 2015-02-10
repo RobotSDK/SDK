@@ -50,7 +50,7 @@ public:
     void updateOrientation(double theta);
     void updateScanBeams(QVector<double> & scanBeams);
     bool getEvaluation(Geometry & geometry);
-    bool getFitting(Geometry & geometry);
+    bool getFitting(Geometry & geometry, QVector<double> & sigma);
 };
 
 class FastRectangleFitting : public FastConvexFitting

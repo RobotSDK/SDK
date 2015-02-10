@@ -109,7 +109,7 @@ bool FastConvexFitting::getEvaluation(Geometry & geometry)
     }
 }
 
-bool FastConvexFitting::getFitting(Geometry & geometry)
+bool FastConvexFitting::getFitting(Geometry & geometry, QVector<double> & sigma)
 {
     if(initflag)
     {
@@ -145,7 +145,17 @@ bool FastConvexFitting::getFitting(Geometry & geometry)
     if(G.score>0)
     {
         geometry=G;
-        return 1;
+        int j,m=G.geometry.size();
+        sigma.resize(m);
+        for(j=0;j<m;j++)
+        {
+            sigma=0;
+            int count=0;
+            for(i=0;i<n;i++)
+            {
+                if(configurations[i].geometry[j]==G.geometry[j])
+            }
+        }
     }
     else
     {
