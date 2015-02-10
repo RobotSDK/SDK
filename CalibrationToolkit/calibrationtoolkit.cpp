@@ -634,6 +634,10 @@ void CalibrateCameraVelodyneChessboardBase::projectVelodynePointsSlot()
     int i,n=calibvelodynespoints.size();
     for(i=0;i<n;i++)
     {
+	if(calibvelodynespoints[i]==NULL)
+	{
+	    continue;
+	}
         cv::Mat tmpimage=calibimages[i].clone();
         int j,m=calibvelodynespoints[i]->points.size();
         cv::Mat camerapoints(m,3,CV_64F);
