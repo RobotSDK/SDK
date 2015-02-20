@@ -11,6 +11,11 @@ FastConvexFitting::FastConvexFitting(QVector<double> & geometryLowerBound, QVect
     initflag=1;
 }
 
+FastConvexFitting::~FastConvexFitting()
+{
+
+}
+
 double FastConvexFitting::getGain(double & alpha, double & beta, double & beam)
 {
     double gain=1;
@@ -20,15 +25,15 @@ double FastConvexFitting::getGain(double & alpha, double & beta, double & beam)
         double thresh=0.05;
         if(distance>thresh)
         {
-            gain=0.8+(exp(-pow(distance-thresh,2)/0.01))*0.4;
+            gain=0.5+(exp(-pow(distance-thresh,2)/0.01))*9.5;
         }
         else if(distance>=-thresh&&distance<=thresh)
         {
-            gain=1.5;
+            gain=10+(exp(-pow(distance,2)/0.01))*10;
         }
         else if(distance<-thresh)
         {
-            gain=0.1+(exp(-pow(distance+thresh,2)/0.01))*1.4;
+            gain=0.1+(exp(-pow(distance+thresh,2)/0.01))*9.9;
         }
     }
     return gain;
@@ -84,6 +89,7 @@ bool FastConvexFitting::getEvaluation(Geometry & geometry)
             Eigen::Vector2d B;
             B=position+orientation*(geometry.edges[edgeid[j]].startcorner);
             int k;
+            int count=0;
             for(k=startid[j];k<=endid[j];k++)
             {
                 int tmpid=k;
@@ -98,6 +104,15 @@ bool FastConvexFitting::getEvaluation(Geometry & geometry)
                 A.block(0,1,2,1)=points[tmpid];
                 Eigen::Vector2d x=A.inverse()*B;
                 geometry.score*=getGain(x(0),x(1),beams[tmpid]);
+                count++;
+            }
+            if(count>0)
+            {
+                geometry.score=pow(geometry.score,1.0/double(count));
+            }
+            else
+            {
+                return 0;
             }
         }
         return 1;
@@ -109,7 +124,7 @@ bool FastConvexFitting::getEvaluation(Geometry & geometry)
     }
 }
 
-bool FastConvexFitting::getFitting(Geometry & geometry, QVector<double> & sigma)
+bool FastConvexFitting::getFitting(Geometry & geometry)
 {
     if(initflag)
     {
@@ -136,7 +151,7 @@ bool FastConvexFitting::getFitting(Geometry & geometry, QVector<double> & sigma)
 
     G.score=0;
     for(i=0;i<n;i++)
-    {        
+    {
         if(getEvaluation(configurations[i])&&G.score<configurations[i].score)
         {
             G=configurations[i];
@@ -144,18 +159,53 @@ bool FastConvexFitting::getFitting(Geometry & geometry, QVector<double> & sigma)
     }
     if(G.score>0)
     {
-        geometry=G;
         int j,m=G.geometry.size();
-        sigma.resize(m);
-        for(j=0;j<m;j++)
+        G.sigma.fill(0,m);
+        QVector<double> sum;
+        sum.fill(0,m);
+
+        for(i=0;i<n;i++)
         {
-            sigma=0;
-            int count=0;
-            for(i=0;i<n;i++)
+            int diffcount=0;
+            int diffid;
+            for(j=0;j<m;j++)
             {
-                if(configurations[i].geometry[j]==G.geometry[j])
+                if(configurations[i].geometry[j]!=G.geometry[j])
+                {
+                    diffcount++;
+                    diffid=j;
+                }
+                if(diffcount>=2)
+                {
+                    break;
+                }
+            }
+            if(diffcount==1)
+            {
+                G.sigma[diffid]+=configurations[i].score*pow(configurations[i].geometry[diffid]-G.geometry[diffid],2);
+                sum[diffid]+=configurations[i].score;
+            }
+            else if(diffcount==0)
+            {
+                for(j=0;j<m;j++)
+                {
+                    sum[j]+=configurations[i].score;
+                }
             }
         }
+        for(j=0;j<m;j++)
+        {
+            if(sum[j]>0)
+            {
+                G.sigma[j]/=sum[j];
+            }
+            if(G.sigma[j]<=0)
+            {
+                G.sigma[j]=100;
+            }
+        }
+        geometry=G;
+        return 1;
     }
     else
     {

@@ -18,6 +18,7 @@ struct Geometry
     QVector<Edge> edges;
     QVector<Edge> globaledges;
     QVector<double> geometry;
+    QVector<double> sigma;
     double score;
 };
 
@@ -25,6 +26,7 @@ class FastConvexFitting
 {
 public:
     FastConvexFitting(QVector<double> & geometryLowerBound, QVector<double> & geometryUpperBound, QVector<double> & geometryStep);
+    virtual ~FastConvexFitting();
 protected:
     Geometry G;
     QVector<double> lb;
@@ -50,7 +52,7 @@ public:
     void updateOrientation(double theta);
     void updateScanBeams(QVector<double> & scanBeams);
     bool getEvaluation(Geometry & geometry);
-    bool getFitting(Geometry & geometry, QVector<double> & sigma);
+    bool getFitting(Geometry & geometry);
 };
 
 class FastRectangleFitting : public FastConvexFitting

@@ -8,12 +8,14 @@ class VirtualScan
 {
 public:
     sensor_msgs::PointCloud2ConstPtr velodynedata;
-protected:
+public:
     int beamnum;
     double step;
     double minfloor;
     double maxceiling;
     QVector<QVector<double> > dp;
+    QVector<QVector<int> > pathfloor;
+    QVector<QVector<int> > pathceiling;
 public:
     VirtualScan();
     virtual ~VirtualScan();

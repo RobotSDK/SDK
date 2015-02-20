@@ -16,6 +16,7 @@
 #include<qsplitter.h>
 #include<qframe.h>
 #include<qmessagebox.h>
+#include<qcombobox.h>
 
 #include<opencv2/opencv.hpp>
 
@@ -136,6 +137,14 @@ protected:
     cv::vector<cv::Point3f> grid3dpoint;
     cv::vector<cv::vector<cv::Point3f> > grid3dpoints;
     cv::vector<cv::vector<cv::Point2f> > grid2dpoints;
+
+    enum CHESSBOARDTYPE
+    {
+        BoxGrid,
+        CircleGrid
+    };
+
+    QComboBox * chessboardtype;
 
     QTabWidget * chessboardtab;
     cv::vector<cv::Mat> chessboardposes;

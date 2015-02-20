@@ -26,68 +26,121 @@ void VirtualScan::calculateVirtualScans(int beamNum, double heightStep, double m
 
     int size=int((maxceiling-minfloor)/step+0.5);
 
-    QVector<double> tmpbeam;
-    tmpbeam.fill(0,beamnum);
-    dp.fill(tmpbeam,size*size);
 
-    char * tmpdata=(char *)(velodynedata->data.data());
-    int i,n=velodynedata->height*velodynedata->width;
+    pathfloor.clear();
+    pathfloor.resize(beamnum);
+    pathceiling.clear();
+    pathceiling.resize(beamnum);
 
-    //O(N)
-    for(i=0;i<n;i++)
+    dp.clear();
+    dp.resize(beamnum);
     {
-        float * point=(float *)(tmpdata+i*velodynedata->point_step);
-        int heightid=int((point[2]-minfloor)/step+0.5);
-        if(heightid>=0&&heightid<size)
+        int i;
+        for(i=0;i<beamnum;i++)
         {
-            int id=heightid*size+heightid;
-            double theta=atan2(point[1],point[0]);
-            int index=int((theta+PI)/density);
-            if(index<0)
+            dp[i].resize(size*size);
+            dp[i].fill(0);
+        }
+    }
+
+    {
+        char * tmpdata=(char *)(velodynedata->data.data());
+        int i,n=velodynedata->height*velodynedata->width;
+
+        //O(P)
+        for(i=0;i<n;i++)
+        {
+            float * point=(float *)(tmpdata+i*velodynedata->point_step);
+            int heightid=int((point[2]-minfloor)/step+0.5);
+            if(heightid>=0&&heightid<size)
             {
-                index=0;
-            }
-            else if(index>=beamnum)
-            {
-                index=beamnum-1;
-            }
-            double distance=sqrt(point[0]*point[0]+point[1]*point[1]);
-            if(distance>0)
-            {
-                if(dp[id][index]<=0)
+                int id=heightid*size+heightid;
+                double theta=atan2(point[1],point[0]);
+                int index=int((theta+PI)/density);
+                if(index<0)
                 {
-                    dp[id][index]=distance;
+                    index=0;
                 }
-                else if(dp[id][index]>distance)
+                else if(index>=beamnum)
                 {
-                    dp[id][index]=distance;
+                    index=beamnum-1;
+                }
+                double distance=sqrt(point[0]*point[0]+point[1]*point[1]);
+                if(distance>0)
+                {
+                    if(dp[index][id]<=0)
+                    {
+                        dp[index][id]=distance;
+                    }
+                    else if(dp[index][id]>distance)
+                    {
+                        dp[index][id]=distance;
+                    }
                 }
             }
         }
     }
-    //O(S^2)
-    for(i=1;i<size;i++)
     {
-        int j;
-        for(j=i-1;j>=0;j--)
+#pragma omp parallel for \
+    default(shared) \
+    schedule(dynamic,10)
+        for(int i=0;i<beamnum;i++)
         {
-            int lid=j*size+(i-1);
-            int did=(j+1)*size+i;
-            int id=j*size+i;
-            int k;
-            for(k=0;k<beamnum;k++)
+            int j;
+            bool flag=1;
+            int startid;
+            //O(M)
+            for(j=0;j<size;j++)
             {
-                if(dp[lid][k]>0&&dp[did][k]>0)
+                int id=j*size+j;
+                if(flag)
                 {
-                    dp[id][k]=dp[lid][k]<dp[did][k]?dp[lid][k]:dp[did][k];
+                    if(dp[i][id]>0)
+                    {
+                        flag=0;
+                        startid=j;
+                    }
+                    continue;
                 }
-                else if(dp[lid][k]>0)
+                if(dp[i][id]>0&&startid==j-1)
                 {
-                    dp[id][k]=dp[lid][k];
+                    startid=j;
                 }
-                else if(dp[did][k]>0)
+                else if(dp[i][id]>0)
                 {
-                    dp[id][k]=dp[did][k];
+                    int k;
+                    double delta=(dp[i][id]-dp[i][startid*size+startid])/(j-startid);
+                    for(k=startid+1;k<j;k++)
+                    {
+                        dp[i][k*size+k]=dp[i][id]-(j-k)*delta;
+                    }
+                    startid=j;
+                }
+            }
+            dp[i].back()=0;
+            //O(M^2)
+            for(j=1;j<size;j++)
+            {
+                int k;
+                for(k=j-1;k>=0;k--)
+                {
+                    int lid=k*size+(j-1);
+                    int did=(k+1)*size+j;
+                    int id=k*size+j;
+                    double lvalue=dp[i][lid];
+                    double dvalue=dp[i][did];
+                    if(lvalue>0&&dvalue>0)
+                    {
+                        dp[i][id]=lvalue<dvalue?lvalue:dvalue;
+                    }
+                    else if(lvalue>0)
+                    {
+                        dp[i][id]=lvalue;
+                    }
+                    else if(dvalue>0)
+                    {
+                        dp[i][id]=dvalue;
+                    }
                 }
             }
         }
@@ -100,16 +153,17 @@ void VirtualScan::getUpperVirtualScan(double theta, double maxFloor, double minC
     heights.fill(minfloor,beamnum);
 
     int size=int((maxceiling-minfloor)/step+0.5);
-
     double delta=fabs(step/tan(theta));
 
-    int i;
-    for(i=0;i<beamnum;i++)
+#pragma omp parallel for \
+    default(shared) \
+    schedule(dynamic,10)
+    for(int i=0;i<beamnum;i++)
     {
         int floorid=0;
         int ceilingid=size-1;
         int id=floorid*size+ceilingid;
-        virtualScan[i]=dp[id][i];
+        virtualScan[i]=dp[i][id];
         if(virtualScan[i]<=0)
         {
             continue;
@@ -117,57 +171,83 @@ void VirtualScan::getUpperVirtualScan(double theta, double maxFloor, double minC
         bool jumpflag=1;
         while(floorid<ceilingid)
         {
-            id=(floorid+1)*size+ceilingid;
-            if(dp[id][i]>0)
+            id=floorid*size+ceilingid;
+            if(dp[i][id]>0)
             {
-                if(jumpflag&&fabs(dp[id][i]-virtualScan[i])<delta)
+                if(dp[i][id+size]>0)
                 {
-                    virtualScan[i]=dp[id][i];
-                    floorid++;
-                    if(minfloor+floorid*step>maxFloor)
+                    if(jumpflag&&dp[i][id+size]-dp[i][id]<delta)
                     {
-                        break;
+                        virtualScan[i]=dp[i][id];
+                        pathfloor[i].push_back(floorid);
+                        pathceiling[i].push_back(ceilingid);
+                        floorid++;
+                        if(minfloor+floorid*step>maxFloor)
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
+                    jumpflag=0;
+                    if(dp[i][id+size]-dp[i][id]>=delta)
+                    {
+                        virtualScan[i]=dp[i][id];
+                        pathfloor[i].push_back(floorid);
+                        pathceiling[i].push_back(ceilingid);
+                        floorid++;
                     }
                     else
                     {
-                        continue;
+                        double tmpdis=dp[i][id];
+                        int j;
+                        for(j=ceilingid-1;j>=floorid;j--)
+                        {
+                            id=floorid*size+j;
+                            if(dp[i][id+size]-dp[i][id]>=delta)
+                            {
+                                virtualScan[i]=dp[i][id];
+                                pathfloor[i].push_back(floorid);
+                                pathceiling[i].push_back(ceilingid);
+                                ceilingid=j;
+                                pathfloor[i].push_back(floorid);
+                                pathceiling[i].push_back(ceilingid);
+                                break;
+                            }
+                            else if(minfloor+(j+1)*step<minCeiling)
+                            {
+                                j=floorid;
+                            }
+                        }
+                        if(j<floorid)
+                        {
+                            virtualScan[i]=tmpdis;
+                            pathfloor[i].push_back(floorid);
+                            pathceiling[i].push_back(ceilingid);
+                            floorid++;
+                            break;
+                        }
                     }
-                }
-                jumpflag=0;
-                if(dp[id][i]-virtualScan[i]>=delta)
-                {
-                    virtualScan[i]=dp[id][i];
-                    floorid++;
                 }
                 else
                 {
-                    double tmpdis=dp[id][i];
-                    int j;
-                    for(j=ceilingid-1;j>=floorid;j--)
-                    {
-                        id=floorid*size+j;
-                        if(dp[id][i]>tmpdis)
-                        {
-                            virtualScan[i]=dp[id][i];
-                            ceilingid=j;
-                            break;
-                        }
-                        else if(minfloor+(j+1)*step<minCeiling)
-                        {
-                            j=floorid;
-                        }
-                    }
-                    if(j<floorid)
-                    {
-                        virtualScan[i]=tmpdis;
-                        floorid++;
-                        break;
-                    }
+                    pathfloor[i].push_back(floorid);
+                    pathceiling[i].push_back(ceilingid);
+                    floorid++;
+                    virtualScan[i]=dp[i][id+size];
+                    pathfloor[i].push_back(floorid);
+                    pathceiling[i].push_back(ceilingid);
+                    floorid++;
+                    break;
                 }
             }
             else
             {
-                virtualScan[i]=dp[id][i];
+                virtualScan[i]=dp[i][id];
+                pathfloor[i].push_back(floorid);
+                pathceiling[i].push_back(ceilingid);
                 floorid++;
                 break;
             }
@@ -178,84 +258,7 @@ void VirtualScan::getUpperVirtualScan(double theta, double maxFloor, double minC
 
 void VirtualScan::getLowerVirtualScan(double theta, double maxFloor, double minCeiling, QVector<double> &virtualScan, QVector<double> &heights)
 {
-    virtualScan.fill(0,beamnum);
-    heights.fill(minfloor,beamnum);
 
-    int size=int((maxceiling-minfloor)/step+0.5);
-
-    double delta=fabs(step/tan(theta));
-
-    int i;
-    for(i=0;i<beamnum;i++)
-    {
-        int floorid=0;
-        int ceilingid=size-1;
-        int id=floorid*size+ceilingid;
-        virtualScan[i]=dp[id][i];
-        if(virtualScan[i]<=0)
-        {
-            continue;
-        }
-        bool jumpflag=1;
-        while(floorid<ceilingid)
-        {
-            id=(floorid)*size+(ceilingid-1);
-            if(dp[id][i]>0)
-            {
-                if(jumpflag&&fabs(dp[id][i]-virtualScan[i])<delta)
-                {
-                    virtualScan[i]=dp[id][i];
-                    ceilingid--;
-                    if(minfloor+(ceilingid+1)*step<minCeiling)
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        continue;
-                    }
-                }
-                jumpflag=0;
-                if(dp[id][i]-virtualScan[i]>=delta)
-                {
-                    virtualScan[i]=dp[id][i];
-                    ceilingid--;
-                }
-                else
-                {
-                    double tmpdis=dp[id][i];
-                    int j;
-                    for(j=floorid+1;j<=ceilingid;j++)
-                    {
-                        id=j*size+ceilingid;
-                        if(dp[id][i]>tmpdis)
-                        {
-                            virtualScan[i]=dp[id][i];
-                            floorid=j;
-                            break;
-                        }
-                        else if(minfloor+j*step>maxFloor)
-                        {
-                            j=ceilingid;
-                        }
-                    }
-                    if(j>ceilingid)
-                    {
-                        virtualScan[i]=tmpdis;
-                        ceilingid--;
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                virtualScan[i]=dp[id][i];
-                ceilingid--;
-                break;
-            }
-        }
-        heights[i]=minfloor+(ceilingid+0.5)*step;
-    }
 }
 
 int VirtualScan::getBeamNum()

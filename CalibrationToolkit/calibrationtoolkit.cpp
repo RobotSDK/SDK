@@ -281,6 +281,11 @@ CalibrateCameraChessboardBase::CalibrateCameraChessboardBase(cv::Size2f patternS
         }
     }    
 
+    chessboardtype=new QComboBox;
+    chessboardtype->addItems(QStringList()<<"Box Grid"<<"Circle Grid");
+    chessboardtype->setCurrentIndex(0);
+    calibsplitter->addWidget(chessboardtype);
+
     chessboardtab=new QTabWidget;
     calibsplitter->addWidget(chessboardtab);
 
@@ -509,7 +514,17 @@ bool CalibrateCameraChessboardROS::grabCalibData()
 {
     camerasub->stopReceiveSlot();
     cv::vector<cv::Point2f> grid2dpoint;
-    bool found=cv::findChessboardCorners(calibimage,patternnum,grid2dpoint);
+    CHESSBOARDTYPE boardtype=CHESSBOARDTYPE(chessboardtype->currentIndex());
+    bool found;
+    switch(boardtype)
+    {
+    case BoxGrid:
+        found=cv::findChessboardCorners(calibimage,patternnum,grid2dpoint);
+        break;
+    case CircleGrid:
+        found=cv::findCirclesGrid(calibimage,patternnum,grid2dpoint);
+        break;
+    }
     if(!found)
     {
         camerasub->startReceiveSlot();
@@ -1168,7 +1183,17 @@ bool CalibrateCameraVelodyneChessboardROS::grabCalibData()
     velodynesub->stopReceiveSlot();
 
     cv::vector<cv::Point2f> grid2dpoint;
-    bool found=cv::findChessboardCorners(calibimage,patternnum,grid2dpoint);
+    CHESSBOARDTYPE boardtype=CHESSBOARDTYPE(chessboardtype->currentIndex());
+    bool found;
+    switch(boardtype)
+    {
+    case BoxGrid:
+        found=cv::findChessboardCorners(calibimage,patternnum,grid2dpoint);
+        break;
+    case CircleGrid:
+        found=cv::findCirclesGrid(calibimage,patternnum,grid2dpoint);
+        break;
+    }
     if(!found)
     {
         camerasub->startReceiveSlot();
