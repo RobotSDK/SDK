@@ -13,14 +13,16 @@ public:
     double step;
     double minfloor;
     double maxceiling;
+    double rotation;
     QVector<QVector<double> > dp;
+    QVector<int> minfloorid;
     QVector<QVector<int> > pathfloor;
     QVector<QVector<int> > pathceiling;
 public:
     VirtualScan();
     virtual ~VirtualScan();
 public:
-    void calculateVirtualScans(int beamNum, double heightStep, double minFloor, double maxCeiling);
+    void calculateVirtualScans(int beamNum, double heightStep, double minFloor, double maxCeiling, double beamRotation=0);
     void getUpperVirtualScan(double theta, double maxFloor, double minCeiling, QVector<double> & virtualScan, QVector<double> & heights);
     void getLowerVirtualScan(double theta, double maxFloor, double minCeiling, QVector<double> & virtualScan, QVector<double> & heights);
 public:

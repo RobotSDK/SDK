@@ -12,7 +12,7 @@ VirtualScan::~VirtualScan()
 {
 }
 
-void VirtualScan::calculateVirtualScans(int beamNum, double heightStep, double minFloor, double maxCeiling)
+void VirtualScan::calculateVirtualScans(int beamNum, double heightStep, double minFloor, double maxCeiling, double beamRotation)
 {
     assert(minFloor<maxCeiling);
 
@@ -20,6 +20,7 @@ void VirtualScan::calculateVirtualScans(int beamNum, double heightStep, double m
     step=heightStep;
     minfloor=minFloor;
     maxceiling=maxCeiling;
+    rotation=beamRotation;
 
     double PI=3.141592654;
     double density=2*PI/beamnum;
@@ -31,6 +32,7 @@ void VirtualScan::calculateVirtualScans(int beamNum, double heightStep, double m
     pathfloor.resize(beamnum);
     pathceiling.clear();
     pathceiling.resize(beamnum);
+    minfloorid.resize(beamnum);
 
     dp.clear();
     dp.resize(beamnum);
@@ -47,10 +49,18 @@ void VirtualScan::calculateVirtualScans(int beamNum, double heightStep, double m
         char * tmpdata=(char *)(velodynedata->data.data());
         int i,n=velodynedata->height*velodynedata->width;
 
+        double c=cos(rotation);
+        double s=sin(rotation);
+
         //O(P)
         for(i=0;i<n;i++)
         {
-            float * point=(float *)(tmpdata+i*velodynedata->point_step);
+            float * pointdata=(float *)(tmpdata+i*velodynedata->point_step);
+            float point[3];
+            point[0]=pointdata[0];
+            point[1]=pointdata[1];
+            double distance=sqrt(point[0]*point[0]+point[1]*point[1]);
+            point[2]=distance*s+pointdata[2]*c;
             int heightid=int((point[2]-minfloor)/step+0.5);
             if(heightid>=0&&heightid<size)
             {
@@ -65,7 +75,7 @@ void VirtualScan::calculateVirtualScans(int beamNum, double heightStep, double m
                 {
                     index=beamnum-1;
                 }
-                double distance=sqrt(point[0]*point[0]+point[1]*point[1]);
+
                 if(distance>0)
                 {
                     if(dp[index][id]<=0)
@@ -90,6 +100,8 @@ void VirtualScan::calculateVirtualScans(int beamNum, double heightStep, double m
             bool flag=1;
             int startid;
             //O(M)
+            double minlength=0;
+            minfloorid[i]=0;
             for(j=0;j<size;j++)
             {
                 int id=j*size+j;
@@ -97,6 +109,11 @@ void VirtualScan::calculateVirtualScans(int beamNum, double heightStep, double m
                 {
                     if(dp[i][id]>0)
                     {
+                        if(minlength==0||minlength>=dp[i][id])
+                        {
+                            minlength=dp[i][id];
+                            minfloorid[i]=j;
+                        }
                         flag=0;
                         startid=j;
                     }
@@ -104,12 +121,22 @@ void VirtualScan::calculateVirtualScans(int beamNum, double heightStep, double m
                 }
                 if(dp[i][id]>0&&startid==j-1)
                 {
+                    if(minlength==0||minlength>=dp[i][id])
+                    {
+                        minlength=dp[i][id];
+                        minfloorid[i]=j;
+                    }
                     startid=j;
                 }
                 else if(dp[i][id]>0)
                 {
-                    int k;
+                    if(minlength==0||minlength>=dp[i][id])
+                    {
+                        minlength=dp[i][id];
+                        minfloorid[i]=j;
+                    }
                     double delta=(dp[i][id]-dp[i][startid*size+startid])/(j-startid);
+                    int k;
                     for(k=startid+1;k<j;k++)
                     {
                         dp[i][k*size+k]=dp[i][id]-(j-k)*delta;
@@ -119,10 +146,10 @@ void VirtualScan::calculateVirtualScans(int beamNum, double heightStep, double m
             }
             dp[i].back()=0;
             //O(M^2)
-            for(j=1;j<size;j++)
+            for(j=minfloorid[i]+1;j<size;j++)
             {
                 int k;
-                for(k=j-1;k>=0;k--)
+                for(k=j-1;k>=minfloorid[i];k--)
                 {
                     int lid=k*size+(j-1);
                     int did=(k+1)*size+j;
@@ -155,12 +182,15 @@ void VirtualScan::getUpperVirtualScan(double theta, double maxFloor, double minC
     int size=int((maxceiling-minfloor)/step+0.5);
     double delta=fabs(step/tan(theta));
 
+    double c=cos(rotation);
+    double s=sin(rotation);
+
 #pragma omp parallel for \
     default(shared) \
     schedule(dynamic,10)
     for(int i=0;i<beamnum;i++)
     {
-        int floorid=0;
+        int floorid=minfloorid[i];
         int ceilingid=size-1;
         int id=floorid*size+ceilingid;
         virtualScan[i]=dp[i][id];
@@ -182,7 +212,7 @@ void VirtualScan::getUpperVirtualScan(double theta, double maxFloor, double minC
                         pathfloor[i].push_back(floorid);
                         pathceiling[i].push_back(ceilingid);
                         floorid++;
-                        if(minfloor+floorid*step>maxFloor)
+                        if(minfloor+floorid*step>dp[i][id]*s+maxFloor*c)
                         {
                             break;
                         }
@@ -216,7 +246,7 @@ void VirtualScan::getUpperVirtualScan(double theta, double maxFloor, double minC
                                 pathceiling[i].push_back(ceilingid);
                                 break;
                             }
-                            else if(minfloor+(j+1)*step<minCeiling)
+                            else if(minfloor+(j+1)*step<dp[i][id]*s+minCeiling*c)
                             {
                                 j=floorid;
                             }
