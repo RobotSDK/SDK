@@ -48,6 +48,7 @@ void FastVirtualScan::calculateVirtualScans(int beamNum, double heightStep, doub
     //initial Simple Virtual Scan
     {
         svs.resize(beamnum);
+        svsback.resize(beamnum);
         for(int i=0;i<beamnum;i++)
         {
             svs[i].resize(size);
@@ -95,9 +96,13 @@ void FastVirtualScan::calculateVirtualScans(int beamNum, double heightStep, doub
     }
     //sorts
     {
+#ifdef USEOMP
+#ifndef QT_DEBUG
 #pragma omp parallel for \
     default(shared) \
     schedule(static)
+#endif
+#endif
         for(int i=0;i<beamnum;i++)
         {            
             int j;
@@ -132,6 +137,7 @@ void FastVirtualScan::calculateVirtualScans(int beamNum, double heightStep, doub
                 }
             }
             svs[i].back().rotlength=MAXVIRTUALSCAN;
+            svsback[i]=svs[i];
             qSort(svs[i].begin(),svs[i].end(),compareDistance);
         }
     }
@@ -149,68 +155,120 @@ void FastVirtualScan::getVirtualScan(double theta, double maxFloor, double minCe
     int size=int((maxceiling-minfloor)/step+0.5);
     double delta=fabs(step/tan(theta));
 
+#ifdef USEOMP
+#ifndef QT_DEBUG
 #pragma omp parallel for \
     default(shared) \
     schedule(static)
+#endif
+#endif
     for(int i=0;i<beamnum;i++)
-    {
-        int startid=0;
-        bool minflag=1;
-        bool jumpflag=1;
-        for(int j=0;j<size;j++)
+    {        
+        int candid=0;
+        bool roadfilterflag=1;
+        bool denoiseflag=1;
+        if(svs[i][candid].height>maxFloor)
         {
+            virtualScan[i]=svs[i].front().length;
+            minheights[i]=svs[i].front().height;
+            denoiseflag=0;
+            roadfilterflag=0;
+        }
+        else
+        for(int j=1;j<size;j++)
+        {
+            if(svs[i][j].rotid<=svs[i][candid].rotid)
+            {
+                continue;
+            }
+            int startrotid=svs[i][candid].rotid;
+            int endrotid=svs[i][j].rotid;
+
             if(svs[i][j].rotlength==MAXVIRTUALSCAN)
             {
-                if(minflag)
+                if(roadfilterflag)
                 {
                     virtualScan[i]=0;
-                    minheights[i]=svs[i][startid].height;
-                    maxheights[i]=svs[i][startid].height;
+                    minheights[i]=svsback[i][startrotid].height;
+                    maxheights[i]=svsback[i][startrotid].height;
                 }
                 else
                 {
-                    maxheights[i]=svs[i][startid].height;
+                    maxheights[i]=svsback[i][startrotid].height;
                 }
                 break;
             }
-            else if(svs[i][j].rotid>svs[i][startid].rotid&&svs[i][j].height<=minCeiling)
+            else
             {
-                if(jumpflag)
+                if(denoiseflag)
                 {
-                    if(svs[i][j].rotlength-svs[i][startid].rotlength>=delta)
+                    if(svs[i][j].rotlength-svs[i][candid].rotlength>=delta)
                     {
-                        jumpflag=0;
+                        denoiseflag=0;
+                        roadfilterflag=1;
                     }
                     else if(svs[i][j].height>maxFloor)
                     {
                         virtualScan[i]=svs[i].front().length;
                         minheights[i]=svs[i].front().height;
-                        minflag=0;
-                        jumpflag=0;
+                        denoiseflag=0;
+                        roadfilterflag=0;
                     }
                 }
                 else
                 {
-                    if(minflag)
+                    if(roadfilterflag)
                     {
-                        if(svs[i][j].rotlength-svs[i][startid].rotlength<delta)
+                        if(startrotid+1==endrotid)
                         {
-                            virtualScan[i]=svs[i][startid].length;
-                            minheights[i]=svs[i][startid].height;
-                            minflag=0;
+                            if(svs[i][j].rotlength-svs[i][candid].rotlength<=delta)
+                            {
+                                virtualScan[i]=svsback[i][startrotid].length;
+                                minheights[i]=svsback[i][startrotid].height;
+                                roadfilterflag=0;
+                            }
+                        }
+                        else
+                        {
+                            if(svs[i][j].height<=minCeiling)
+                            {
+                                if(svs[i][j].rotlength-svs[i][candid].rotlength<=delta)
+                                {
+                                    virtualScan[i]=svsback[i][startrotid].length;
+                                    minheights[i]=svsback[i][startrotid].height;
+                                    roadfilterflag=0;
+                                }
+                                else
+                                {
+                                    virtualScan[i]=svs[i][j].length;
+                                    for(int k=startrotid+1;k<endrotid;k++)
+                                    {
+                                        if(virtualScan[i]>svsback[i][k].length)
+                                        {
+                                            virtualScan[i]=svsback[i][k].length;
+                                        }
+                                    }
+                                    minheights[i]=svsback[i][startrotid+1].height;
+                                    roadfilterflag=0;
+                                }
+                            }
+                            else
+                            {
+                                continue;
+                            }
                         }
                     }
                     else
                     {
-                        if(svs[i][j].rotlength-svs[i][startid].rotlength>=delta)
+                        if(svs[i][j].rotlength-svs[i][candid].rotlength>delta)
                         {
-                            maxheights[i]=svs[i][startid].height;
+                            maxheights[i]=svsback[i][startrotid].height;
                             break;
                         }
                     }
                 }
-                startid=j;
             }
+            candid=j;
         }
     }
 }

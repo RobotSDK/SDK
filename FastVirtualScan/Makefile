@@ -507,6 +507,7 @@ compiler_clean:
 		../../../SDK/Qt/5.3/gcc_64/include/QtCore/qpoint.h \
 		../../../SDK/Qt/5.3/gcc_64/include/QtCore/qnamespace.h \
 		../../../SDK/Qt/5.3/gcc_64/include/QtCore/QtAlgorithms \
+		../../../SDK/Qt/5.3/gcc_64/include/QtCore/QtGlobal \
 		/opt/ros/indigo/include/sensor_msgs/PointCloud2.h \
 		/opt/ros/indigo/include/ros/types.h \
 		/opt/ros/indigo/include/ros/serialization.h \

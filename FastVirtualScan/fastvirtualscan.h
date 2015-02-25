@@ -3,6 +3,7 @@
 
 #include<QVector>
 #include<QtAlgorithms>
+#include<QtGlobal>
 #include<sensor_msgs/PointCloud2.h>
 
 struct SimpleVirtualScan
@@ -25,6 +26,7 @@ public:
     double maxceiling;
     double rotation;
     QVector<QVector<SimpleVirtualScan> > svs;
+    QVector<QVector<SimpleVirtualScan> > svsback;
     QVector<double> minheights;
     QVector<double> maxheights;
 public:
