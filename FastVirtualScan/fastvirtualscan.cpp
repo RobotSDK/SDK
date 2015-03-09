@@ -143,7 +143,7 @@ void FastVirtualScan::calculateVirtualScans(int beamNum, double heightStep, doub
     }
 }
 
-void FastVirtualScan::getVirtualScan(double theta, double maxFloor, double minCeiling, QVector<double> &virtualScan)
+void FastVirtualScan::getVirtualScan(double theta, double maxFloor, double minCeiling, double passHeight, QVector<double> &virtualScan)
 {
     virtualScan.fill(MAXVIRTUALSCAN,beamnum);
     minheights.fill(minfloor,beamnum);
@@ -167,6 +167,10 @@ void FastVirtualScan::getVirtualScan(double theta, double maxFloor, double minCe
         int candid=0;
         bool roadfilterflag=1;
         bool denoiseflag=1;
+        while(svs[i][candid].height>minCeiling)
+        {
+            candid++;
+        }
         if(svs[i][candid].height>maxFloor)
         {
             virtualScan[i]=svs[i].front().length;
@@ -174,8 +178,7 @@ void FastVirtualScan::getVirtualScan(double theta, double maxFloor, double minCe
             denoiseflag=0;
             roadfilterflag=0;
         }
-        else
-        for(int j=1;j<size;j++)
+        for(int j=candid+1;j<size;j++)
         {
             if(svs[i][j].rotid<=svs[i][candid].rotid)
             {
@@ -202,17 +205,51 @@ void FastVirtualScan::getVirtualScan(double theta, double maxFloor, double minCe
             {
                 if(denoiseflag)
                 {
-                    if(svs[i][j].rotlength-svs[i][candid].rotlength>=delta)
+                    if(startrotid+1==endrotid)
                     {
-                        denoiseflag=0;
-                        roadfilterflag=1;
+                        if(svs[i][j].rotlength-svs[i][candid].rotlength>=delta)
+                        {
+                            denoiseflag=0;
+                            roadfilterflag=1;
+                        }
+                        else if(svs[i][j].height>maxFloor)
+                        {
+                            virtualScan[i]=svs[i].front().length;
+                            minheights[i]=svs[i].front().height;
+                            denoiseflag=0;
+                            roadfilterflag=0;
+                        }
                     }
-                    else if(svs[i][j].height>maxFloor)
+                    else
                     {
-                        virtualScan[i]=svs[i].front().length;
-                        minheights[i]=svs[i].front().height;
-                        denoiseflag=0;
-                        roadfilterflag=0;
+                        if(svs[i][j].height-svs[i][candid].height<=passHeight)
+                        {
+                            if(svs[i][j].rotlength-svs[i][candid].rotlength<=delta)
+                            {
+                                virtualScan[i]=svsback[i][startrotid].length;
+                                minheights[i]=svsback[i][startrotid].height;
+                                denoiseflag=0;
+                                roadfilterflag=0;
+                            }
+                            else
+                            {
+                                virtualScan[i]=svs[i][j].length;
+                                for(int k=startrotid+1;k<endrotid;k++)
+                                {
+                                    if(virtualScan[i]>svsback[i][k].length)
+                                    {
+                                        virtualScan[i]=svsback[i][k].length;
+                                    }
+                                }
+                                minheights[i]=svsback[i][startrotid+1].height;
+                                denoiseflag=0;
+                                roadfilterflag=0;
+                            }
+                        }
+                        else
+                        {
+                            continue;
+                        }
                     }
                 }
                 else
@@ -230,7 +267,7 @@ void FastVirtualScan::getVirtualScan(double theta, double maxFloor, double minCe
                         }
                         else
                         {
-                            if(svs[i][j].height<=minCeiling)
+                            if(svs[i][j].height-svs[i][candid].height<=passHeight)
                             {
                                 if(svs[i][j].rotlength-svs[i][candid].rotlength<=delta)
                                 {
