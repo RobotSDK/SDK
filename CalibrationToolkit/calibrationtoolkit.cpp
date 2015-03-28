@@ -1606,7 +1606,7 @@ CalibrateCameraLidarChessboardROS::CalibrateCameraLidarChessboardROS(QString cam
     camerasub=new ROSSub<sensor_msgs::ImageConstPtr>(cameraTopic,cameraQueueSize,cameraInterval);
     connect(camerasub,SIGNAL(receiveMessageSignal()),this,SLOT(refreshImageSlot()));
     lidarsub=new ROSSub<sensor_msgs::LaserScanConstPtr>(lidarTopic,lidarQueueSize,lidarInterval);
-    connect(lidarsub,SIGNAL(receiveMessageSignal()),this,SLOT(refreshlidarSlot()));
+    connect(lidarsub,SIGNAL(receiveMessageSignal()),this,SLOT(refreshLidarSlot()));
     camerasub->startReceiveSlot();
     lidarsub->startReceiveSlot();
 }

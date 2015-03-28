@@ -344,6 +344,7 @@ void PlaneExtractor::extractPlane(Eigen::Vector3d seed, Eigen::Matrix3d eigenvec
 PointsExtractor::PointsExtractor(int imageSize, double maxRange, double gridSize)
 {    
     image=QImage(imagesize,imagesize,QImage::Format_RGB888);
+    this->resize(imagesize,imagesize);
     pointsid=-1;
     imagesize=imageSize;
     maxrange=maxRange;
@@ -355,6 +356,7 @@ PointsExtractor::PointsExtractor(int imageSize, double maxRange, double gridSize
 PointsExtractor::PointsExtractor(sensor_msgs::LaserScanConstPtr lidarPoints, int id, int imageSize, double maxRange, double gridSize)
 {
     image=QImage(imagesize,imagesize,QImage::Format_RGB888);
+    this->resize(imagesize,imagesize);
     updateLaserScan(lidarPoints);
     pointsid=id;
     imagesize=imageSize;
@@ -367,6 +369,7 @@ PointsExtractor::PointsExtractor(sensor_msgs::LaserScanConstPtr lidarPoints, int
 PointsExtractor::PointsExtractor(QVector<QPointF> lidarPoints, int id, int imageSize, double maxRange, double gridSize)\
 {
     image=QImage(imagesize,imagesize,QImage::Format_RGB888);
+    this->resize(imagesize,imagesize);
     points=lidarPoints;
     drawPoints();
     pointsid=id;
@@ -463,6 +466,8 @@ void PointsExtractor::wheelEvent(QWheelEvent *ev)
             {
                 imagesize=100;
             }
+            image=QImage(imagesize,imagesize,QImage::Format_RGB888);
+            this->resize(imagesize,imagesize);
         }
     }
     else
@@ -475,7 +480,8 @@ void PointsExtractor::wheelEvent(QWheelEvent *ev)
         {
             imagesize+=100;
         }
-
+        image=QImage(imagesize,imagesize,QImage::Format_RGB888);
+        this->resize(imagesize,imagesize);
     }
     drawPoints();
     drawRectangle();
@@ -485,8 +491,8 @@ QPoint PointsExtractor::convert2ImagePoint(QPointF point)
 {
     double ratio=double(imagesize)/(2*maxrange);
     QPoint result;
-    result.setX(imagesize+point.x()*ratio);
-    result.setY(imagesize-point.y()*ratio);
+    result.setX(imagesize/2+point.x()*ratio);
+    result.setY(imagesize/2-point.y()*ratio);
     return result;
 }
 
@@ -494,8 +500,8 @@ QPointF PointsExtractor::convert2RealPoint(QPoint point)
 {
     double ratio=(2*maxrange)/double(imagesize);
     QPointF result;
-    result.setX((point.x()-imagesize)*ratio);
-    result.setY((imagesize-point.y())*ratio);
+    result.setX((point.x()-imagesize/2)*ratio);
+    result.setY((imagesize/2-point.y())*ratio);
     return result;
 }
 

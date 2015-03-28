@@ -142,6 +142,8 @@ DIST          = ../../../SDK/Qt/5.4/gcc_64/mkspecs/features/spec_pre.prf \
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_webkitwidgets_private.pri \
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_websockets.pri \
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_websockets_private.pri \
+		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_webview.pri \
+		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_webview_private.pri \
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_widgets.pri \
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_widgets_private.pri \
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_x11extras.pri \
@@ -301,6 +303,8 @@ Makefile: CalibrationToolkit.pro ../../../SDK/Qt/5.4/gcc_64/mkspecs/linux-g++/qm
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_webkitwidgets_private.pri \
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_websockets.pri \
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_websockets_private.pri \
+		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_webview.pri \
+		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_webview_private.pri \
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_widgets.pri \
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_widgets_private.pri \
 		../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_x11extras.pri \
@@ -426,6 +430,8 @@ Makefile: CalibrationToolkit.pro ../../../SDK/Qt/5.4/gcc_64/mkspecs/linux-g++/qm
 ../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_webkitwidgets_private.pri:
 ../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_websockets.pri:
 ../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_websockets_private.pri:
+../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_webview.pri:
+../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_webview_private.pri:
 ../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_widgets.pri:
 ../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_widgets_private.pri:
 ../../../SDK/Qt/5.4/gcc_64/mkspecs/modules/qt_lib_x11extras.pri:
@@ -2269,10 +2275,9 @@ compiler_moc_header_clean:
 		/usr/include/eigen3/Eigen/Dense \
 		../../../SDK/Qt/5.4/gcc_64/include/QtGui/qopengl.h \
 		../../../SDK/Qt/5.4/gcc_64/include/QtCore/qt_windows.h \
-		/usr/include/GLES3/gl31.h \
+		/usr/include/GLES3/gl3.h \
 		/usr/include/GLES3/gl3platform.h \
 		/usr/include/KHR/khrplatform.h \
-		/usr/include/GLES3/gl3.h \
 		/usr/include/GLES2/gl2.h \
 		/usr/include/GLES2/gl2platform.h \
 		../../../SDK/Qt/5.4/gcc_64/include/QtGui/qopengles2ext.h \
@@ -3513,10 +3518,9 @@ compiler_moc_header_clean:
 		../../../SDK/GLViewer/include/glviewer.h \
 		../../../SDK/Qt/5.4/gcc_64/include/QtGui/qopengl.h \
 		../../../SDK/Qt/5.4/gcc_64/include/QtCore/qt_windows.h \
-		/usr/include/GLES3/gl31.h \
+		/usr/include/GLES3/gl3.h \
 		/usr/include/GLES3/gl3platform.h \
 		/usr/include/KHR/khrplatform.h \
-		/usr/include/GLES3/gl3.h \
 		/usr/include/GLES2/gl2.h \
 		/usr/include/GLES2/gl2platform.h \
 		../../../SDK/Qt/5.4/gcc_64/include/QtGui/qopengles2ext.h \
@@ -5326,10 +5330,9 @@ compiler_clean: compiler_moc_header_clean
 		/usr/include/eigen3/Eigen/Dense \
 		../../../SDK/Qt/5.4/gcc_64/include/QtGui/qopengl.h \
 		../../../SDK/Qt/5.4/gcc_64/include/QtCore/qt_windows.h \
-		/usr/include/GLES3/gl31.h \
+		/usr/include/GLES3/gl3.h \
 		/usr/include/GLES3/gl3platform.h \
 		/usr/include/KHR/khrplatform.h \
-		/usr/include/GLES3/gl3.h \
 		/usr/include/GLES2/gl2.h \
 		/usr/include/GLES2/gl2platform.h \
 		../../../SDK/Qt/5.4/gcc_64/include/QtGui/qopengles2ext.h \
@@ -6570,10 +6573,9 @@ compiler_clean: compiler_moc_header_clean
 		../../../SDK/GLViewer/include/glviewer.h \
 		../../../SDK/Qt/5.4/gcc_64/include/QtGui/qopengl.h \
 		../../../SDK/Qt/5.4/gcc_64/include/QtCore/qt_windows.h \
-		/usr/include/GLES3/gl31.h \
+		/usr/include/GLES3/gl3.h \
 		/usr/include/GLES3/gl3platform.h \
 		/usr/include/KHR/khrplatform.h \
-		/usr/include/GLES3/gl3.h \
 		/usr/include/GLES2/gl2.h \
 		/usr/include/GLES2/gl2platform.h \
 		../../../SDK/Qt/5.4/gcc_64/include/QtGui/qopengles2ext.h \
