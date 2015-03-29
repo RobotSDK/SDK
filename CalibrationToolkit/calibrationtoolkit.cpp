@@ -1281,8 +1281,12 @@ CalibrateCameraLidarChessboardBase::CalibrateCameraLidarChessboardBase(float max
     lidartab=new QTabWidget;
     lidarsplitter->addWidget(lidartab);
 
-    caliblidarviewer=new PointsExtractor(400,80,10);
-    lidartab->addTab(caliblidarviewer,"Timestamp");
+
+    caliblidarviewer=new PointsExtractor(400,10,2);
+    QScrollArea * scroll=new QScrollArea;
+    scroll->setWidget(caliblidarviewer);
+    lidartab->addTab(scroll,"Timestamp");
+    caliblidarviewer->update();
 
     caliblidarsshow=new QTabWidget;
     lidarsplitter->addWidget(caliblidarsshow);
@@ -1492,7 +1496,7 @@ bool CalibrateCameraLidarChessboardBase::calibrateSensor()
             calibrationdata.lidarpoints[i].at<double>(j,2)=0;
         }
     }
-    if(flag)
+    if(!flag)
     {
         return 0;
     }
@@ -1564,7 +1568,7 @@ bool CalibrateCameraLidarChessboardBase::loadCalibResult(cv::FileStorage &fs)
                 tmplidartable->setItem(j,1,new QTableWidgetItem(QString("%1").arg(caliblidarspoints[i][j].y())));
             }
 
-            PointsExtractor * pointsextraction=new PointsExtractor(caliblidarspoints[i],i,400,80,10);
+            PointsExtractor * pointsextraction=new PointsExtractor(caliblidarspoints[i],i,400,10,2);
             caliblidarsshow->addTab(pointsextraction,QString("LIDAR_%1").arg(i));
             connect(pointsextraction,SIGNAL(extractionResultSignal(QVector<QPointF>,int)),this,SLOT(extractionResultSlot(QVector<QPointF>,int)));
         }
@@ -1727,8 +1731,11 @@ bool CalibrateCameraLidarChessboardROS::grabCalibData()
     caliblidarpointstab->addTab(tmplidartable,QString("LIDAR_%1").arg(caliblidarspoints.size()-1));
 
     PointsExtractor * pointsextraction=new PointsExtractor(caliblidar,caliblidarspoints.size()-1,caliblidarviewer->imagesize,caliblidarviewer->maxrange,caliblidarviewer->gridsize);
-    caliblidarsshow->addTab(pointsextraction,QString("LIDAR_%1").arg(caliblidarspoints.size()-1));
+    QScrollArea * scroll=new QScrollArea;
+    scroll->setWidget(pointsextraction);
+    caliblidarsshow->addTab(scroll,QString("LIDAR_%1").arg(caliblidarspoints.size()-1));
     caliblidarsshow->setCurrentWidget(pointsextraction);
+    pointsextraction->update();
     connect(pointsextraction,SIGNAL(extractionResultSignal(QVector<QPointF>,int)),this,SLOT(extractionResultSlot(QVector<QPointF>,int)));
 
     camerasub->startReceiveSlot();

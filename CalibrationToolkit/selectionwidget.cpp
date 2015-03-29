@@ -343,8 +343,6 @@ void PlaneExtractor::extractPlane(Eigen::Vector3d seed, Eigen::Matrix3d eigenvec
 
 PointsExtractor::PointsExtractor(int imageSize, double maxRange, double gridSize)
 {    
-    image=QImage(imagesize,imagesize,QImage::Format_RGB888);
-    this->resize(imagesize,imagesize);
     pointsid=-1;
     imagesize=imageSize;
     maxrange=maxRange;
@@ -355,8 +353,6 @@ PointsExtractor::PointsExtractor(int imageSize, double maxRange, double gridSize
 
 PointsExtractor::PointsExtractor(sensor_msgs::LaserScanConstPtr lidarPoints, int id, int imageSize, double maxRange, double gridSize)
 {
-    image=QImage(imagesize,imagesize,QImage::Format_RGB888);
-    this->resize(imagesize,imagesize);
     updateLaserScan(lidarPoints);
     pointsid=id;
     imagesize=imageSize;
@@ -364,12 +360,11 @@ PointsExtractor::PointsExtractor(sensor_msgs::LaserScanConstPtr lidarPoints, int
     gridsize=gridSize;
     extracted=0;
     justshow=0;
+    setMouseTracking(1);
 }
 
 PointsExtractor::PointsExtractor(QVector<QPointF> lidarPoints, int id, int imageSize, double maxRange, double gridSize)\
 {
-    image=QImage(imagesize,imagesize,QImage::Format_RGB888);
-    this->resize(imagesize,imagesize);
     points=lidarPoints;
     drawPoints();
     pointsid=id;
@@ -378,6 +373,7 @@ PointsExtractor::PointsExtractor(QVector<QPointF> lidarPoints, int id, int image
     gridsize=gridSize;
     extracted=0;
     justshow=0;
+    setMouseTracking(1);
 }
 
 void PointsExtractor::updateLaserScan(sensor_msgs::LaserScanConstPtr lidarPoints)
@@ -393,6 +389,12 @@ void PointsExtractor::updateLaserScan(sensor_msgs::LaserScanConstPtr lidarPoints
     drawPoints();
 }
 
+void PointsExtractor::update()
+{
+    drawPoints();
+    drawRectangle();
+}
+
 void PointsExtractor::mousePressEvent(QMouseEvent *ev)
 {
     if(!justshow)
@@ -404,15 +406,14 @@ void PointsExtractor::mousePressEvent(QMouseEvent *ev)
             {
                 startcorner=ev->pos();
                 endcorner=startcorner;
+                startextraction=1;
             }
             break;
         case Qt::RightButton:
-            if(extracted)
-            {
-                extracted=0;
-                startcorner=QPoint(0,0);
-                endcorner=QPoint(0,0);
-            }
+            extracted=0;
+            startcorner=QPoint(0,0);
+            endcorner=QPoint(0,0);
+            startextraction=0;
             break;
         }
         drawPoints();
@@ -424,7 +425,7 @@ void PointsExtractor::mouseMoveEvent(QMouseEvent *ev)
 {
     if(!justshow)
     {
-        if(ev->button()==Qt::LeftButton)
+        if(startextraction)
         {
             endcorner=ev->pos();
             drawPoints();
@@ -442,6 +443,7 @@ void PointsExtractor::mouseReleaseEvent(QMouseEvent *ev)
         {
             extracted=1;
             emit extractionResultSignal(extractPoints(),pointsid);
+            startextraction=0;
         }
     }
     QLabel::mouseReleaseEvent(ev);
@@ -451,6 +453,8 @@ void PointsExtractor::wheelEvent(QWheelEvent *ev)
 {
     if(ev->angleDelta().y()>0)
     {
+        QPointF tmpstartcorner=convert2RealPoint(startcorner);
+        QPointF tmpendcorder=convert2RealPoint(endcorner);
         if(ev->modifiers()!=Qt::ControlModifier)
         {
             maxrange-=gridsize;
@@ -466,12 +470,14 @@ void PointsExtractor::wheelEvent(QWheelEvent *ev)
             {
                 imagesize=100;
             }
-            image=QImage(imagesize,imagesize,QImage::Format_RGB888);
-            this->resize(imagesize,imagesize);
         }
+        startcorner=convert2ImagePoint(tmpstartcorner);
+        endcorner=convert2ImagePoint(tmpendcorder);
     }
     else
     {
+        QPointF tmpstartcorner=convert2RealPoint(startcorner);
+        QPointF tmpendcorder=convert2RealPoint(endcorner);
         if(ev->modifiers()!=Qt::ControlModifier)
         {
             maxrange+=gridsize;
@@ -480,8 +486,8 @@ void PointsExtractor::wheelEvent(QWheelEvent *ev)
         {
             imagesize+=100;
         }
-        image=QImage(imagesize,imagesize,QImage::Format_RGB888);
-        this->resize(imagesize,imagesize);
+        startcorner=convert2ImagePoint(tmpstartcorner);
+        endcorner=convert2ImagePoint(tmpendcorder);
     }
     drawPoints();
     drawRectangle();
@@ -507,6 +513,8 @@ QPointF PointsExtractor::convert2RealPoint(QPoint point)
 
 void PointsExtractor::drawPoints()
 {
+    image=QImage(imagesize,imagesize,QImage::Format_RGB888);
+    this->resize(imagesize,imagesize);
     image.fill(QColor(255,255,255));
     QPainter painter;
     painter.begin(&image);
@@ -526,6 +534,7 @@ void PointsExtractor::drawPoints()
     {
         painter.drawEllipse(convert2ImagePoint(points[i]),1,1);
     }
+    painter.end();
 
     this->setPixmap(QPixmap::fromImage(image));
 }
@@ -553,6 +562,7 @@ void PointsExtractor::drawRectangle()
     {
         painter.drawEllipse(convert2ImagePoint(extraction[i]),1,1);
     }
+    painter.end();
 
     this->setPixmap(QPixmap::fromImage(image));
 }
@@ -569,9 +579,10 @@ QVector<QPointF> PointsExtractor::extractPoints()
     QVector<QPointF> result;
     for(i=0;i<n;i++)
     {
-        if(points[i].x()>=tmpstart.x()&&points[i].x()<=tmpend.x())
+        QPoint tmp=convert2ImagePoint(points[i]);
+        if(tmp.x()>=startx&&tmp.x()<=endx)
         {
-            if(points[i].y()>=tmpstart.y()&&points[i].y()<=tmpend.y())
+            if(tmp.y()>=starty&&tmp.y()<=endy)
             {
                 result.push_back(points[i]);
             }

@@ -8,6 +8,7 @@
 #include<QLabel>
 #include<QImage>
 #include<QPainter>
+#include<QDebug>
 
 #include<opencv2/opencv.hpp>
 
@@ -58,6 +59,7 @@ public:
 protected:
     int pointsid;
     bool justshow;
+    bool startextraction;
     sensor_msgs::LaserScanConstPtr pointsptr;
     QVector<QPointF> points;
     bool extracted;
@@ -70,6 +72,7 @@ public:
     double gridsize;
 public:
     void updateLaserScan(sensor_msgs::LaserScanConstPtr lidarPoints);
+    void update();
 protected:
     void mousePressEvent(QMouseEvent * ev);
     void mouseMoveEvent(QMouseEvent * ev);
