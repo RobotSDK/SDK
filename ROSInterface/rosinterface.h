@@ -13,6 +13,7 @@
 #include<qfileinfo.h>
 #include<qthread.h>
 #include<qdebug.h>
+#include<QRegExp>
 
 #include<ros/ros.h>
 #include<tf/transform_broadcaster.h>
@@ -30,7 +31,6 @@ public:
     ~ROSInterfaceBase();
 protected:
     ros::NodeHandle * nh;
-    QThread thread;
 };
 
 template<class MSGTYPE>
@@ -95,7 +95,7 @@ public:
     ~ROSSubBase();
 protected:
     ros::CallbackQueue queue;
-    QTimer timer;
+    QTimer * timer;
     bool receiveflag;
     QReadWriteLock lock;
 signals:
@@ -224,7 +224,7 @@ public:
 protected:
     QString destinationframe;
     QString originalframe;
-    QTimer timer;
+    QTimer * timer;
     bool receiveflag;
     QReadWriteLock lock;
     tf::TransformListener listener;

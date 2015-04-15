@@ -221,7 +221,7 @@ protected slots:
     void refreshVelodyneSlot();
 public slots:
     void extractionResultSlot(pcl::PointCloud<pcl::PointXYZI>::Ptr extraction, cv::Mat normal, int id);
-    void projectVelodynePointsSlot();
+    void projectPointsSlot();
 signals:
     void velodyneRefreshedSignal();
     void velodyneRefreshedErrorSignal();
@@ -282,7 +282,7 @@ protected slots:
     void refreshLidarSlot();
 public slots:
     void extractionResultSlot(QVector<QPointF> extraction, int id);
-    void projectLidarPointsSlot();
+    void projectPointsSlot();
 signals:
     void lidarRefreshedSignal();
     void lidarRefreshedErrorSignal();

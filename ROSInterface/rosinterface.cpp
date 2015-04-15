@@ -12,20 +12,17 @@ ROSInterfaceBase::ROSInterfaceBase(QString NodeName, QString ROSMasterURI, QObje
         if(fileinfo.exists())
         {
             NodeName=fileinfo.baseName();
+            NodeName.replace(QRegExp("[^a-zA-Z0-9/_$]"),QString("_"));
         }
     }
     char *argv=arguments[0].toUtf8().data();
 
     ros::init(argc,&argv,NodeName.toStdString());
     nh=new ros::NodeHandle;
-    this->moveToThread(&thread);
-    thread.start();
 }
 
 ROSInterfaceBase::~ROSInterfaceBase()
 {
-    thread.exit();
-    thread.wait();
     if(nh!=NULL)
     {
         if(nh->ok())
@@ -41,11 +38,12 @@ ROSSubBase::ROSSubBase(int QueryInterval, QString NodeName, QString ROSMasterURi
     : ROSInterfaceBase(NodeName,ROSMasterURi,parent)
 {
     nh->setCallbackQueue(&queue);
-    timer.setInterval(QueryInterval);
-    connect(&timer,SIGNAL(timeout()),this,SLOT(receiveMessageSlot()));
-    connect(this,SIGNAL(startReceiveSignal()),&timer,SLOT(start()));
-    connect(this,SIGNAL(stopReceiveSignal()),&timer,SLOT(stop()));
-    connect(this,SIGNAL(resetQueryIntervalSignal(int)),&timer,SLOT(start(int)));
+    timer=new QTimer(this);
+    timer->setInterval(QueryInterval);
+    connect(timer,SIGNAL(timeout()),this,SLOT(receiveMessageSlot()));
+    connect(this,SIGNAL(startReceiveSignal()),timer,SLOT(start()));
+    connect(this,SIGNAL(stopReceiveSignal()),timer,SLOT(stop()));
+    connect(this,SIGNAL(resetQueryIntervalSignal(int)),timer,SLOT(start(int)));
     receiveflag=0;
     emit startReceiveSignal();
 }
@@ -54,9 +52,10 @@ ROSSubBase::~ROSSubBase()
 {
     receiveflag=0;
     emit stopReceiveSignal();
-    disconnect(&timer,SIGNAL(timeout()),this,SLOT(receiveMessageSlot()));
-    disconnect(this,SIGNAL(startReceiveSignal()),&timer,SLOT(start()));
-    disconnect(this,SIGNAL(stopReceiveSignal()),&timer,SLOT(stop()));
+    disconnect(timer,SIGNAL(timeout()),this,SLOT(receiveMessageSlot()));
+    disconnect(this,SIGNAL(startReceiveSignal()),timer,SLOT(start()));
+    disconnect(this,SIGNAL(stopReceiveSignal()),timer,SLOT(stop()));
+    delete timer;
 }
 
 void ROSSubBase::startReceiveSlot()
@@ -139,11 +138,12 @@ ROSTFSub::ROSTFSub(QString destinationFrame, QString originalFrame, int QueryInt
 {
     destinationframe=destinationFrame;
     originalframe=originalFrame;
-    timer.setInterval(QueryInterval);
-    connect(&timer,SIGNAL(timeout()),this,SLOT(receiveTFSlot()));
-    connect(this,SIGNAL(startReceiveSignal()),&timer,SLOT(start()));
-    connect(this,SIGNAL(stopReceiveSignal()),&timer,SLOT(stop()));
-    connect(this,SIGNAL(resetQueryIntervalSignal(int)),&timer,SLOT(start(int)));
+    timer=new QTimer(this);
+    timer->setInterval(QueryInterval);
+    connect(timer,SIGNAL(timeout()),this,SLOT(receiveTFSlot()));
+    connect(this,SIGNAL(startReceiveSignal()),timer,SLOT(start()));
+    connect(this,SIGNAL(stopReceiveSignal()),timer,SLOT(stop()));
+    connect(this,SIGNAL(resetQueryIntervalSignal(int)),timer,SLOT(start(int)));
     receiveflag=0;
     lastflag=0;
     emit startReceiveSignal();
@@ -154,9 +154,10 @@ ROSTFSub::~ROSTFSub()
     receiveflag=0;
     lastflag=0;
     emit stopReceiveSignal();
-    disconnect(&timer,SIGNAL(timeout()),this,SLOT(receiveTFSlot()));
-    disconnect(this,SIGNAL(startReceiveSignal()),&timer,SLOT(start()));
-    disconnect(this,SIGNAL(stopReceiveSignal()),&timer,SLOT(stop()));
+    disconnect(timer,SIGNAL(timeout()),this,SLOT(receiveTFSlot()));
+    disconnect(this,SIGNAL(startReceiveSignal()),timer,SLOT(start()));
+    disconnect(this,SIGNAL(stopReceiveSignal()),timer,SLOT(stop()));
+    delete timer;
 }
 
 void ROSTFSub::startReceiveSlot()

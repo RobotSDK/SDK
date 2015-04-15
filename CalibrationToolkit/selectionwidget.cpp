@@ -573,8 +573,6 @@ QVector<QPointF> PointsExtractor::extractPoints()
     int starty=startcorner.y()<endcorner.y()?startcorner.y():endcorner.y();
     int endx=startcorner.x()>endcorner.x()?startcorner.x():endcorner.x();
     int endy=startcorner.y()>endcorner.y()?startcorner.y():endcorner.y();
-    QPointF tmpstart=convert2RealPoint(QPoint(startx,starty));
-    QPointF tmpend=convert2RealPoint(QPoint(endx,endy));
     int i,n=points.size();
     QVector<QPointF> result;
     for(i=0;i<n;i++)

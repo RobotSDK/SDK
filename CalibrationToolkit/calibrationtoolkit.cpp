@@ -12,6 +12,7 @@ CalibrationToolkitBase::CalibrationToolkitBase(QWidget * parent)
 
     calibsplitter=new QSplitter(Qt::Vertical);
     splitter->addWidget(calibsplitter);
+    splitter->setStretchFactor(splitter->indexOf(calibsplitter),1);
 }
 
 void CalibrationToolkitBase::grabCalibDataSlot()
@@ -134,6 +135,7 @@ CalibrateCameraBase::CalibrateCameraBase(QWidget *parent)
 {
     cameracalibtab=new QTabWidget;
     calibsplitter->addWidget(cameracalibtab);
+    calibsplitter->setStretchFactor(calibsplitter->indexOf(cameracalibtab),1);
 
     cameraextrinsicmat=cv::Mat::eye(4,4,CV_64F);
     cameraextrinsicshow=new QTableWidget;
@@ -156,9 +158,11 @@ CalibrateCameraBase::CalibrateCameraBase(QWidget *parent)
 
     imagesplitter=new QSplitter(Qt::Vertical);
     splitter->addWidget(imagesplitter);
+    splitter->setStretchFactor(splitter->indexOf(imagesplitter),2);
 
     cameraimagetab=new QTabWidget;
     imagesplitter->addWidget(cameraimagetab);
+    imagesplitter->setStretchFactor(imagesplitter->indexOf(cameraimagetab),1);
 
     calibimageshow=new QLabel("Image");
     QScrollArea * scrollarea=new QScrollArea;
@@ -285,9 +289,11 @@ CalibrateCameraChessboardBase::CalibrateCameraChessboardBase(cv::Size2f patternS
     chessboardtype->addItems(QStringList()<<"Box Grid"<<"Circle Grid");
     chessboardtype->setCurrentIndex(0);
     calibsplitter->addWidget(chessboardtype);
+    calibsplitter->setStretchFactor(calibsplitter->indexOf(chessboardtype),0);
 
     chessboardtab=new QTabWidget;
     calibsplitter->addWidget(chessboardtab);
+    calibsplitter->setStretchFactor(calibsplitter->indexOf(chessboardtab),1);
 
     chessboardposeshow=new QTabWidget;
     chessboardtab->addTab(chessboardposeshow,CHESSBOARDPOSE);
@@ -297,6 +303,7 @@ CalibrateCameraChessboardBase::CalibrateCameraChessboardBase(cv::Size2f patternS
 
     calibimagesshow=new QTabWidget;
     imagesplitter->addWidget(calibimagesshow);
+    imagesplitter->setStretchFactor(imagesplitter->indexOf(calibimagesshow),1);
 }
 
 bool CalibrateCameraChessboardBase::removeCalibData()
@@ -576,6 +583,7 @@ CalibrateCameraVelodyneChessboardBase::CalibrateCameraVelodyneChessboardBase(flo
 
     calibvelodynetab=new QTabWidget;
     calibsplitter->addWidget(calibvelodynetab);
+    calibsplitter->setStretchFactor(calibsplitter->indexOf(calibvelodynetab),1);
 
     calibvelodynepointstab=new QTabWidget;
     calibvelodynetab->addTab(calibvelodynepointstab,"Chessboard Points");
@@ -588,9 +596,11 @@ CalibrateCameraVelodyneChessboardBase::CalibrateCameraVelodyneChessboardBase(flo
 
     velodynesplitter=new QSplitter(Qt::Vertical);
     splitter->addWidget(velodynesplitter);
+    splitter->setStretchFactor(splitter->indexOf(velodynesplitter),2);
 
     velodynetab=new QTabWidget;
     velodynesplitter->addWidget(velodynetab);
+    velodynesplitter->setStretchFactor(velodynesplitter->indexOf(velodynetab),1);
 
     calibvelodyneviewer=new GLViewer;
     velodynetab->addTab(calibvelodyneviewer,"Timestamp");
@@ -602,6 +612,7 @@ CalibrateCameraVelodyneChessboardBase::CalibrateCameraVelodyneChessboardBase(flo
 
     calibvelodynesshow=new QTabWidget;
     velodynesplitter->addWidget(calibvelodynesshow);
+    velodynesplitter->setStretchFactor(velodynesplitter->indexOf(calibvelodynesshow),1);
 }
 
 void CalibrateCameraVelodyneChessboardBase::refreshVelodyneSlot()
@@ -642,7 +653,7 @@ void CalibrateCameraVelodyneChessboardBase::extractionResultSlot(pcl::PointCloud
     calibvelodynenormalstab->setCurrentIndex(id);
 }
 
-void CalibrateCameraVelodyneChessboardBase::projectVelodynePointsSlot()
+void CalibrateCameraVelodyneChessboardBase::projectPointsSlot()
 {
     cv::Mat invR=cameraextrinsicmat(cv::Rect(0,0,3,3)).t();
     cv::Mat invT=-invR*(cameraextrinsicmat(cv::Rect(3,0,1,3)));
@@ -809,7 +820,7 @@ double calibrationCameraVelodyneChessboardObjectiveFunc(const std::vector<double
         error+=delta;
     }
     error/=count;
-    qDebug()<<error<<x[0]<<x[1]<<x[2]<<x[3]<<x[4]<<x[5];
+    //qDebug()<<error<<x[0]<<x[1]<<x[2]<<x[3]<<x[4]<<x[5];
     return error;
 }
 
@@ -882,7 +893,7 @@ double calibrationCameraVelodyneChessboardTranslationalObjectiveFunc(const std::
         error+=delta;
     }
     error/=count;
-    qDebug()<<error<<x[0]<<x[1]<<x[2];
+    //qDebug()<<error<<x[0]<<x[1]<<x[2];
     return error;
 }
 
@@ -949,7 +960,7 @@ bool CalibrateCameraVelodyneChessboardBase::calibrateSensor()
     cv::Mat tmpmat=cameraextrinsicmat(cv::Rect(0,0,3,3));
     calibrationdata.rotationresult.copyTo(tmpmat);
     QVector<double> euler=convertMatrix2Euler(calibrationdata.rotationresult);
-    qDebug()<<euler;
+    //qDebug()<<euler;
 
     calibrationrotationalerror=cv::norm(calibrationdata.velodynenormals-calibrationdata.chessboardnormals*calibrationdata.rotationresult.t());
 
@@ -973,7 +984,7 @@ bool CalibrateCameraVelodyneChessboardBase::calibrateSensor()
     }
 
     cameraextrinsicmat.at<double>(0,3)=x[0];cameraextrinsicmat.at<double>(1,3)=x[1];cameraextrinsicmat.at<double>(2,3)=x[2];
-    qDebug()<<x[0]<<x[1]<<x[2];
+    //qDebug()<<x[0]<<x[1]<<x[2];
 
     lb.resize(6);ub.resize(6);
     std::vector<double> xx(6);
@@ -1268,6 +1279,7 @@ CalibrateCameraLidarChessboardBase::CalibrateCameraLidarChessboardBase(float max
 
     caliblidartab=new QTabWidget;
     calibsplitter->addWidget(caliblidartab);
+    calibsplitter->setStretchFactor(calibsplitter->indexOf(caliblidartab),1);
 
     caliblidarpointstab=new QTabWidget;
     caliblidartab->addTab(caliblidarpointstab,"Chessboard Points");
@@ -1277,10 +1289,11 @@ CalibrateCameraLidarChessboardBase::CalibrateCameraLidarChessboardBase(float max
 
     lidarsplitter=new QSplitter(Qt::Vertical);
     splitter->addWidget(lidarsplitter);
+    splitter->setStretchFactor(splitter->indexOf(lidarsplitter),2);
 
     lidartab=new QTabWidget;
     lidarsplitter->addWidget(lidartab);
-
+    lidarsplitter->setStretchFactor(lidarsplitter->indexOf(lidartab),1);
 
     caliblidarviewer=new PointsExtractor(400,10,2);
     QScrollArea * scroll=new QScrollArea;
@@ -1290,6 +1303,7 @@ CalibrateCameraLidarChessboardBase::CalibrateCameraLidarChessboardBase(float max
 
     caliblidarsshow=new QTabWidget;
     lidarsplitter->addWidget(caliblidarsshow);
+    lidarsplitter->setStretchFactor(lidarsplitter->indexOf(caliblidarsshow),1);
 }
 
 void CalibrateCameraLidarChessboardBase::refreshLidarSlot()
@@ -1323,7 +1337,7 @@ void CalibrateCameraLidarChessboardBase::extractionResultSlot(QVector<QPointF> e
     caliblidarpointstab->setCurrentIndex(id);
 }
 
-void CalibrateCameraLidarChessboardBase::projectLidarPointsSlot()
+void CalibrateCameraLidarChessboardBase::projectPointsSlot()
 {
     cv::Mat invR=cameraextrinsicmat(cv::Rect(0,0,3,3)).t();
     cv::Mat invT=-invR*(cameraextrinsicmat(cv::Rect(3,0,1,3)));
@@ -1456,7 +1470,7 @@ double calibrationCameraLidarChessboardObjectiveFunc(const std::vector<double> &
         error+=delta;
     }
     error/=count;
-    qDebug()<<error<<x[0]<<x[1]<<x[2]<<x[3]<<x[4]<<x[5];
+    //qDebug()<<error<<x[0]<<x[1]<<x[2]<<x[3]<<x[4]<<x[5];
     return error;
 }
 
