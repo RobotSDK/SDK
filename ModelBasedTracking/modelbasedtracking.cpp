@@ -93,15 +93,15 @@ void ParticleDataBase::motionUpdate()
     {
         return;
     }
-    calculateRotationMatrix();
-    position=position+rotationmatrix*((*deltamsecs)/1000.0*velocity);
     int i;
     for(i=0;i<3;i++)
     {
-        position(i)+=posder*mrpt::random::randomGenerator.drawGaussian1D_normalized();
+     //   position(i)+=posder*mrpt::random::randomGenerator.drawGaussian1D_normalized();
         orientation(i)+=orider*mrpt::random::randomGenerator.drawGaussian1D_normalized();
         velocity(i)+=velder*mrpt::random::randomGenerator.drawGaussian1D_normalized();
     }
+    calculateRotationMatrix();
+    position=position+rotationmatrix*((*deltamsecs)/1000.0*velocity);
 }
 
 void ParticleDataBase::estimateGeometryExpectation()
@@ -193,7 +193,7 @@ double ParticleDataBase::updateParticle()
     estimateGeometryExpectation();
     estimateGeometryDerivation();
     double weight=calculateWeight();
-    qDebug()<<weight<<optscore<<mu<<sigma<<position(0)<<position(1)<<orientation(2)<<velocity(0)<<velocity(1);
+    //qDebug()<<weight<<optscore<<mu<<sigma<<position(0)<<position(1)<<orientation(2)<<velocity(0)<<velocity(1);
     return weight;
 }
 
