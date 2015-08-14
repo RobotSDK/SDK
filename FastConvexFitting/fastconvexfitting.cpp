@@ -90,6 +90,7 @@ bool FastConvexFitting::getEvaluation(Geometry & geometry)
             B=position+orientation*(geometry.edges[edgeid[j]].startcorner);
             int k;
             int count=0;
+            double score=1;
             for(k=startid[j];k<=endid[j];k++)
             {
                 int tmpid=k;
@@ -103,15 +104,16 @@ bool FastConvexFitting::getEvaluation(Geometry & geometry)
                 }
                 A.block(0,1,2,1)=points[tmpid];
                 Eigen::Vector2d x=A.inverse()*B;
-                geometry.score*=getGain(x(0),x(1),beams[tmpid]);
+                score*=getGain(x(0),x(1),beams[tmpid]);
                 count++;
             }
             if(count>0)
             {
-                geometry.score=pow(geometry.score,1.0/double(count));
+                geometry.score*=pow(score,1.0/double(count));
             }
             else
             {
+                geometry.score=0;
                 return 0;
             }
         }
